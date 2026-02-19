@@ -1,0 +1,127 @@
+[2026-02-04 09:37:24] DEBUG Creating transport: nodemailer (7.0.13; +https://nodemailer.com/; SMTP/7.0.13[client:7.0.13])
+Γ£à Loaded 7 users
+Γ£à Loaded 1 groups
+Γ£à Loaded 24 chats
+≡ƒÜÇ Server running on port 5000
+Γ£à AI images directory ready: C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\public\uploads\ai-images
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at file:///C:/Users/vishn/OneDrive/Desktop/project/true-friends/backend/index.js:555:43
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:284:15
+    at router.process_params (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\node_modules\body-parser\lib\types\urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at file:///C:/Users/vishn/OneDrive/Desktop/project/true-friends/backend/index.js:555:43
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:284:15
+    at router.process_params (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\node_modules\body-parser\lib\types\urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at file:///C:/Users/vishn/OneDrive/Desktop/project/true-friends/backend/index.js:555:43
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:284:15
+    at router.process_params (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\node_modules\body-parser\lib\types\urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at file:///C:/Users/vishn/OneDrive/Desktop/project/true-friends/backend/index.js:555:43
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:284:15
+    at router.process_params (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\node_modules\body-parser\lib\types\urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at file:///C:/Users/vishn/OneDrive/Desktop/project/true-friends/backend/index.js:555:43
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:284:15
+    at router.process_params (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\node_modules\body-parser\lib\types\urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at file:///C:/Users/vishn/OneDrive/Desktop/project/true-friends/backend/index.js:555:43
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:284:15
+    at router.process_params (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\node_modules\body-parser\lib\types\urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at file:///C:/Users/vishn/OneDrive/Desktop/project/true-friends/backend/index.js:555:43
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:284:15
+    at router.process_params (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\node_modules\body-parser\lib\types\urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at file:///C:/Users/vishn/OneDrive/Desktop/project/true-friends/backend/index.js:555:43
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:284:15
+    at router.process_params (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\node_modules\body-parser\lib\types\urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at file:///C:/Users/vishn/OneDrive/Desktop/project/true-friends/backend/index.js:555:43
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:284:15
+    at router.process_params (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\node_modules\body-parser\lib\types\urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at file:///C:/Users/vishn/OneDrive/Desktop/project/true-friends/backend/index.js:555:43
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:284:15
+    at router.process_params (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\node_modules\body-parser\lib\types\urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    at file:///C:/Users/vishn/OneDrive/Desktop/project/true-friends/backend/index.js:555:43
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:284:15
+    at router.process_params (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\node_modules\body-parser\lib\types\urlencoded.js:82:7)
+    at Layer.handle [as handle_request] (C:\Users\vishn\OneDrive\Desktop\project\true-friends\backend\node_modules\express\lib\router\layer.js:95:5)

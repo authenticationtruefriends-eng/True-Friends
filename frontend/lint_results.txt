@@ -1,0 +1,400 @@
+
+> frontend-vite@0.0.0 lint
+> eslint .
+
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\chat\AudioPlayer.jsx
+  12:42  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+  10 |     // Generate random waveform heights for visual effect
+  11 |     const waveformBars = useRef(
+> 12 |         Array.from({ length: 40 }, () => Math.random() * 0.7 + 0.3)
+     |                                          ^^^^^^^^^^^^^ Cannot call impure function
+  13 |     ).current;
+  14 |
+  15 |     useEffect(() => {  react-hooks/purity
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\chat\CallModal.jsx
+    3:29   error    'isExternalUrl' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               no-unused-vars
+  130:52   error    'e' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+  221:8    warning  React Hook useEffect has missing dependencies: 'isStreamReady' and 'startStream'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+  234:17   error    Error: Cannot access variable before it is declared
+
+`addLog` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+  232 |             // Wait for Handshake
+  233 |             if (!targetPeerId) {
+> 234 |                 addLog("Waiting for PeerID handshake...");
+      |                 ^^^^^^ `addLog` accessed before it is declared
+  235 |                 return;
+  236 |             }
+  237 |
+
+  319 |     // DEBUG: On-screen logs
+  320 |     const [debugLogs, setDebugLogs] = useState([]);
+> 321 |     const addLog = (msg) => {
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+> 322 |         console.log(msg);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^
+> 323 |         setDebugLogs(prev => [...prev.slice(-4), msg]); // Keep last 5 logs
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^
+> 324 |     };
+      | ^^^^^^^ `addLog` is declared here
+  325 |
+  326 |     const handleAnswer = async () => {
+  327 |         if (hasAnsweredRef.current) return;                                                                                        react-hooks/immutability
+  272:8    warning  React Hook useEffect has a missing dependency: 'onClose'. Either include it or remove the dependency array. If 'onClose' changes too often, find the parent component that defines it and wrap that definition in useCallback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+  301:13   error    Error: Cannot access variable before it is declared
+
+`handleAnswer` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+  299 |         if (answerPending && call && !hasAnsweredRef.current) {
+  300 |             console.log("CallModal: Latent answer triggered for arrived call object");
+> 301 |             handleAnswer();
+      |             ^^^^^^^^^^^^ `handleAnswer` accessed before it is declared
+  302 |         }
+  303 |     }, [call, answerPending]);
+  304 |
+
+  324 |     };
+  325 |
+> 326 |     const handleAnswer = async () => {
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 327 |         if (hasAnsweredRef.current) return;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 328 |
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 393 |         }
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 394 |     };
+      | ^^^^^^^ `handleAnswer` is declared here
+  395 |
+  396 |     // Effect to auto-close call if stuck in 'connecting' for too long
+  397 |     useEffect(() => {  react-hooks/immutability
+  303:8    warning  React Hook useEffect has a missing dependency: 'handleAnswer'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react-hooks/exhaustive-deps
+  320:12   error    'debugLogs' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          no-unused-vars
+  362:28   error    Error: This value cannot be modified
+
+Modifying component props or hook arguments is not allowed. Consider using a local variable instead.
+
+  360 |             // Monitor underlying WebRTC connection
+  361 |             const monitorConnection = () => {
+> 362 |                 const pc = call.peerConnection;
+      |                            ^^^^ `call` cannot be modified
+  363 |                 if (!pc) {
+  364 |                     addLog("No PeerConnection found!");
+  365 |                     return;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react-hooks/immutability
+  456:46   error    'streamRef' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              no-unused-vars
+  521:106  error    'e' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      no-unused-vars
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\chat\ChatInput.jsx
+   12:10  error    'uploading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                           no-unused-vars
+   16:10  error    'isSharingLocation' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                   no-unused-vars
+   21:9   error    'startLiveLocation' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                   no-unused-vars
+   76:9   error    'stopLiveLocation' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                    no-unused-vars
+  113:9   error    'pickerRef' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                           no-unused-vars
+  388:6   warning  React Hook useEffect has a missing dependency: 'cameraStream'. Either include it or remove the dependency array                                     react-hooks/exhaustive-deps
+  428:6   warning  React Hook useEffect has missing dependencies: 'gifResults.length' and 'stickerResults.length'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\chat\ChatWindow.jsx
+   16:13  error  'socket' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              no-unused-vars
+  311:74  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+  309 |
+  310 |                     if (!isSystem) {
+> 311 |                         const currentMsgDate = new Date(msg.timestamp || Date.now());
+      |                                                                          ^^^^^^^^^^ Cannot call impure function
+  312 |                         const prevMsg = i > 0 ? messages[i - 1] : null;
+  313 |                         const prevMsgDate = prevMsg ? new Date(prevMsg.timestamp || Date.now()) : null;
+  314 |                                                                                                                                   react-hooks/purity
+  313:85  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+  311 |                         const currentMsgDate = new Date(msg.timestamp || Date.now());
+  312 |                         const prevMsg = i > 0 ? messages[i - 1] : null;
+> 313 |                         const prevMsgDate = prevMsg ? new Date(prevMsg.timestamp || Date.now()) : null;
+      |                                                                                     ^^^^^^^^^^ Cannot call impure function
+  314 |
+  315 |                         if (!prevMsg || prevMsgDate.toDateString() !== currentMsgDate.toDateString()) {
+  316 |                             showDateHeader = true;  react-hooks/purity
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\chat\FriendInfo.jsx
+  11:12  error  'loading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+  17:9   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  15 |
+  16 |     useEffect(() => {
+> 17 |         setPhotoError(false);
+     |         ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  18 |     }, [userId]);
+  19 |
+  20 |     useEffect(() => {                                                                                                                                                    react-hooks/set-state-in-effect
+  23:9   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  21 |         if (!socket || !userId) return;
+  22 |
+> 23 |         setLoading(true);
+     |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  24 |         // Reuse search-friend to get details by username (userId)
+  25 |         socket.emit("search-friend", { query: userId }, (response) => {
+  26 |             if (response.success) {  react-hooks/set-state-in-effect
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\chat\GlobalCallUI.jsx
+  6:83  error  'myPeerId' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\chat\GroupCallModal.jsx
+   58:5   error    React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?                                                                                             react-hooks/rules-of-hooks
+  244:36  warning  The ref value 'peersRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'peersRef.current' to a variable inside the effect, and use that variable in the cleanup function                         react-hooks/exhaustive-deps
+  249:8   warning  React Hook useEffect has missing dependencies: 'currentUserId', 'groupId', 'onClose', 'rtcConfig', and 'socket'. Either include them or remove the dependency array. If 'onClose' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\chat\MessageBubble.jsx
+    9:26  error  'decryptFile' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                          no-unused-vars
+    9:61  error  'isEncryptedFile' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                      no-unused-vars
+   45:14  error  'err' is defined but never used                                                                                             no-unused-vars
+  152:10  error  'showImageModal' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                              no-unused-vars
+  167:10  error  'decrypting' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                  no-unused-vars
+  202:18  error  'error' is defined but never used                                                                                           no-unused-vars
+  233:20  error  'e' is defined but never used                                                                                               no-unused-vars
+  233:23  error  Empty block statement                                                                                                       no-empty
+  261:16  error  'error' is defined but never used                                                                                           no-unused-vars
+  541:31  error  'e' is defined but never used                                                                                               no-unused-vars
+  709:29  error  React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render  react-hooks/rules-of-hooks
+  710:25  error  'node' is defined but never used                                                                                            no-unused-vars
+  711:26  error  'node' is defined but never used                                                                                            no-unused-vars
+  712:26  error  'node' is defined but never used                                                                                            no-unused-vars
+  713:26  error  'node' is defined but never used                                                                                            no-unused-vars
+  714:26  error  'node' is defined but never used                                                                                            no-unused-vars
+  715:26  error  'node' is defined but never used                                                                                            no-unused-vars
+  716:26  error  'node' is defined but never used                                                                                            no-unused-vars
+  717:30  error  'node' is defined but never used                                                                                            no-unused-vars
+  720:29  error  'node' is defined but never used                                                                                            no-unused-vars
+  721:26  error  'node' is defined but never used                                                                                            no-unused-vars
+  722:26  error  'node' is defined but never used                                                                                            no-unused-vars
+  723:25  error  'node' is defined but never used                                                                                            no-unused-vars
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\common\ImageModal.jsx
+  4:29  error  'isExternalUrl' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\group\CreateGroupModal.jsx
+   1:20  error  'useEffect' is defined but never used. Allowed unused vars must match /^[A-Z_]/u            no-unused-vars
+   5:29  error  'isExternalUrl' is defined but never used. Allowed unused vars must match /^[A-Z_]/u        no-unused-vars
+  57:11  error  'otherUsers' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\group\GroupInfo.jsx
+  8:12  error  'isAddingMember' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u     no-unused-vars
+  8:28  error  'setIsAddingMember' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\layout\Sidebar.jsx
+   61:21  error    'peer' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   no-unused-vars
+   73:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  71 |   // Reset search error when result changes
+  72 |   useEffect(() => {
+> 73 |     setGlobalSearchError(false);
+     |     ^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  74 |   }, [globalSearchResult]);
+  75 |
+  76 |   const [pinnedUsers, setPinnedUsers] = useState(() => {  react-hooks/set-state-in-effect
+  171:6   warning  React Hook useEffect has missing dependencies: 'displayPinned' and 'displayRecent'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react-hooks/exhaustive-deps
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\components\profile\ProfileDrawer.jsx
+  67:34  error    'e' is defined but never used                                                                                    no-unused-vars
+  87:8   warning  React Hook useEffect has a missing dependency: 'fetchProfile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\context\AuthContext.jsx
+    1:47  error  'useEffect' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                no-unused-vars
+   28:19  error  'setLoading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                      no-unused-vars
+  179:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\context\CallContext.jsx
+    8:14   error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-refresh/only-export-components
+   28:134  error  Empty block statement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-empty
+  287:144  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+  285 |
+  286 |   return (
+> 287 |     <CallContext.Provider value={{ activeCall, incomingCall, isCallModalOpen, startCall, joinGroupCall, answerCall, rejectCall, endCall, peer: peerRef.current, myPeerId }}>
+      |                                                                                                                                                ^^^^^^^^^^^^^^^ Cannot access ref value during render
+  288 |       {children}
+  289 |     </CallContext.Provider>
+  290 |   );  react-hooks/refs
+  287:144  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+  285 |
+  286 |   return (
+> 287 |     <CallContext.Provider value={{ activeCall, incomingCall, isCallModalOpen, startCall, joinGroupCall, answerCall, rejectCall, endCall, peer: peerRef.current, myPeerId }}>
+      |                                                                                                                                                ^^^^^^^^^^^^^^^ Cannot access ref value during render
+  288 |       {children}
+  289 |     </CallContext.Provider>
+  290 |   );  react-hooks/refs
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\context\ChatContext.jsx
+   27:25  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  25 |                     const parsed = decryptStorage(savedSettings); // Decrypt!
+  26 |                     if (parsed) {
+> 27 |                         setBlockedUsers(parsed.blockedUsers || []);
+     |                         ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  28 |                         setWallpapers(parsed.wallpapers || {});
+  29 |                     }
+  30 |                 } catch (e) {                                                                                  react-hooks/set-state-in-effect
+   67:33  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  65 |                 try {
+  66 |                     const parsed = decryptStorage(saved); // Decrypt!
+> 67 |                     if (parsed) setConversations(parsed);
+     |                                 ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  68 |                 } catch (e) {
+  69 |                     console.error("Failed to load local chats (decryption error)", e);
+  70 |                 }                                                                                    react-hooks/set-state-in-effect
+  215:36  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `user`, but the source dependencies were [socket, user?.uid]. Inferred less specific property than source.
+
+  213 |     }, [blockedUsers]);
+  214 |
+> 215 |     const markAsRead = useCallback((otherUserId) => {
+      |                                    ^^^^^^^^^^^^^^^^^^
+> 216 |         const normalizedId = otherUserId?.toLowerCase();
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 217 |         if (socket && user?.uid) {
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 231 |         });
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 232 |     }, [socket, user?.uid]);
+      | ^^^^^^ Could not preserve existing manual memoization
+  233 |
+  234 |     const setSeenByOthers = useCallback((otherUserId) => {
+  235 |         const normalizedId = otherUserId?.toLowerCase();  react-hooks/preserve-manual-memoization
+  713:8   warning  React Hook useEffect has a missing dependency: 'setSeenByOthers'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+  738:14  error    Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          react-refresh/only-export-components
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\context\SocketContext.jsx
+   7:14  error    Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-refresh/only-export-components
+  68:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  66 |             });
+  67 |
+> 68 |             setSocket(newSocket);
+     |             ^^^^^^^^^ Avoid calling setState() directly within an effect
+  69 |
+  70 |             return () => newSocket.close();
+  71 |         } else {  react-hooks/set-state-in-effect
+  77:8   warning  React Hook useEffect has a missing dependency: 'socket'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react-hooks/exhaustive-deps
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\context\ThemeContext.jsx
+  3:14  error  Fast refresh only works when a file only exports components. Move your React context(s) to a separate file  react-refresh/only-export-components
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\hooks\usePeer.jsx
+   1:31  error  'useRef' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                no-unused-vars
+  50:9   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  48 |         });
+  49 |
+> 50 |         setPeer(newPeer);
+     |         ^^^^^^^ Avoid calling setState() directly within an effect
+  51 |
+  52 |         return () => {
+  53 |             console.log('usePeer: Destroying peer...');  react-hooks/set-state-in-effect
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\pages\AddFriends.jsx
+  11:13  error  'user' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  no-unused-vars
+  20:9   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  18 |
+  19 |     useEffect(() => {
+> 20 |         setSearchPhotoError(false);
+     |         ^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  21 |     }, [searchResult]);
+  22 |
+  23 |  react-hooks/set-state-in-effect
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\pages\Home.jsx
+  16:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  14 |   useEffect(() => {
+  15 |     if (location.state?.startChat) {
+> 16 |       setSelectedUser(location.state.startChat.toLowerCase());
+     |       ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  17 |       // Clear state after reading to prevent re-opening on every render
+  18 |       window.history.replaceState({}, document.title);
+  19 |     }  react-hooks/set-state-in-effect
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\pages\MapIntro.jsx
+  15:18  error  'position' is defined but never used  no-unused-vars
+  21:18  error  'error' is defined but never used     no-unused-vars
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\src\utils\decryptionCache.js
+  67:15  error  'cached' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u   no-unused-vars
+  76:21  error  'fileUrl' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\vishn\OneDrive\Desktop\project\true-friends\frontend\vite.config.js
+  4:8  error  'fs' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+Γ£û 89 problems (78 errors, 11 warnings)
+
