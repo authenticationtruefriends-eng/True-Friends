@@ -1,0 +1,233 @@
+/* Welcome.css */
+.welcome-page {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    color: #1a1a2e;
+    font-family: 'Outfit', sans-serif;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.interactive-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+
+/* Header */
+.welcome-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    position: relative;
+    z-index: 10;
+}
+
+.brand-name-top {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: 'Fredoka', sans-serif;
+    display: flex;
+    gap: 4px;
+}
+
+.brand-part-true {
+    color: #1a4f6e;
+}
+
+.brand-part-friends {
+    background: linear-gradient(to right, #ff9966, #ff5e62);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.auth-buttons-header {
+    display: flex;
+    gap: 1rem;
+}
+
+.nav-btn {
+    padding: 0.6rem 1.2rem;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.nav-btn.login {
+    background: transparent;
+    border: 1.5px solid rgba(26, 26, 46, 0.2);
+    color: #1a1a2e;
+}
+
+.nav-btn.login:hover {
+    background: rgba(26, 26, 46, 0.05);
+    border-color: #1a1a2e;
+}
+
+.nav-btn.signup {
+    background: #1a1a2e;
+    color: white;
+    border: none;
+}
+
+.nav-btn.signup:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+}
+
+/* Main Content */
+.welcome-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 2rem 2rem;
+    margin-top: -14vh;
+    position: relative;
+    z-index: 5;
+}
+
+.logo-container-large {
+    margin-bottom: -80px;
+    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.05));
+}
+
+.welcome-logo {
+    width: 600px;
+    height: 600px;
+    object-fit: contain;
+}
+
+.welcome-tagline {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-top: -110px;
+    margin-bottom: 2rem;
+    max-width: 800px;
+    line-height: 1.2;
+    background: linear-gradient(to right, #1a1a2e, #434343);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Download Section */
+.download-section {
+    display: flex;
+    gap: 2rem;
+}
+
+.download-btn-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.download-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 1rem 2rem;
+    background: rgba(26, 26, 46, 0.05);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(26, 26, 46, 0.1);
+    color: #1a1a2e;
+    border-radius: 16px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.download-btn:hover {
+    background: rgba(26, 26, 46, 0.1);
+    border-color: rgba(26, 26, 46, 0.3);
+    transform: scale(1.05);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.platform-label {
+    font-size: 0.9rem;
+    color: rgba(26, 26, 46, 0.5);
+    font-weight: 500;
+}
+
+/* Soon Modal */
+.soon-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    animation: fadeIn 0.3s ease;
+}
+
+.soon-modal {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2.5rem;
+    border-radius: 24px;
+    text-align: center;
+    color: #1a1a2e;
+    max-width: 350px;
+    width: 90%;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+}
+
+.soon-modal h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.close-modal-btn {
+    margin-top: 1.5rem;
+    padding: 0.8rem 2rem;
+    background: #1a1a2e;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .download-section {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .welcome-tagline {
+        font-size: 1.6rem;
+    }
+}

@@ -6,7 +6,11 @@ const SplashAnimation = ({ onComplete }) => {
 
     useEffect(() => {
         const video = videoRef.current;
-        if (!video) return;
+        if (!video) {
+            console.error('❌ SplashAnimation: Video element not found!');
+            return;
+        }
+        console.log('🎬 SplashAnimation mounted!');
 
         const handleVideoEnd = () => {
             setTimeout(() => {
@@ -19,8 +23,11 @@ const SplashAnimation = ({ onComplete }) => {
 
         video.addEventListener('ended', handleVideoEnd);
 
-        video.play().catch(err => {
-            console.error('Video autoplay failed:', err);
+        console.log('▶️ Attempting to play video...');
+        video.play().then(() => {
+            console.log('✅ Video playing successfully!');
+        }).catch(err => {
+            console.error('❌ Video autoplay failed:', err);
         });
 
         // Safety Fallback: Ensure splash always dismisses
@@ -38,7 +45,7 @@ const SplashAnimation = ({ onComplete }) => {
             video.removeEventListener('ended', handleVideoEnd);
             clearTimeout(safetyTimer);
         };
-    }, [onComplete]);
+    }, [onComplete, fadeOut]);
 
     return (
         <div className={`splash-animation-overlay ${fadeOut ? 'fade-out' : ''}`}>

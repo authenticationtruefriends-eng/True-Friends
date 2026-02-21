@@ -77,9 +77,11 @@ function App() {
   // Listen for login/signup success events
   useEffect(() => {
     const handleLoginSuccess = () => {
+      console.log('🎉 App: loginSuccess event received! Showing splash...');
       setShowSplash(true);
     };
 
+    console.log('🎯 App: Setting up loginSuccess event listener');
     window.addEventListener('loginSuccess', handleLoginSuccess);
     return () => window.removeEventListener('loginSuccess', handleLoginSuccess);
   }, []);

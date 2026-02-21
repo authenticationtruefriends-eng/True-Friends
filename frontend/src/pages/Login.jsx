@@ -40,12 +40,12 @@ export default function Login() {
             const result = await login(username, password);
             if (result.success) {
                 setErrorMessage("");
-                // Trigger splash animation
+                console.log('🎉 Login: loginSuccess event dispatched!');
                 window.dispatchEvent(new Event('loginSuccess'));
-                // Small delay to allow animation to mount before navigation
+                // Increased delay to allow animation to mount before navigation
                 setTimeout(() => {
                     navigate("/");
-                }, 100);
+                }, 300);
             } else {
                 setIsLoggingIn(false); // Re-enable useEffect checks (and allow retry)
                 setErrorMessage(result.error || "Login failed. Please check your credentials.");
@@ -57,11 +57,11 @@ export default function Login() {
     const handleGoogleSuccess = (credentialResponse) => {
         setIsLoggingIn(true);
         loginWithGoogle(credentialResponse);
-        // Trigger splash animation for Google Login too
+        console.log('🎉 Google Login: loginSuccess event dispatched!');
         window.dispatchEvent(new Event('loginSuccess'));
         setTimeout(() => {
             navigate("/");
-        }, 100);
+        }, 300);
     };
 
     return (

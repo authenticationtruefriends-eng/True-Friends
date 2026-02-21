@@ -103,7 +103,11 @@ export default function Signup() {
             console.log("✅ API Result:", result);
 
             if (result.success) {
-                navigate("/verify");
+                console.log('🎉 Signup: loginSuccess event dispatched!');
+                window.dispatchEvent(new Event('loginSuccess'));
+                setTimeout(() => {
+                    navigate("/verify");
+                }, 300);
             } else {
                 setError(result.error || "Signup failed. Please try again.");
             }
@@ -271,7 +275,11 @@ export default function Signup() {
 
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <GoogleLogin
-                        onSuccess={loginWithGoogle}
+                        onSuccess={(res) => {
+                            console.log('🎉 Google Signup: loginSuccess event dispatched!');
+                            window.dispatchEvent(new Event('loginSuccess'));
+                            loginWithGoogle(res);
+                        }}
                         onError={() => {
                             console.log('Signup Failed');
                         }}
