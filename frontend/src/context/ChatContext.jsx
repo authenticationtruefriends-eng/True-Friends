@@ -458,6 +458,11 @@ export function ChatProvider({ children }) {
             // otherwise it's the sender 'from'
             const chatKey = msg.fromMe ? msg.to : msg.from;
 
+            if (!chatKey || chatKey === "undefined") {
+                console.warn("⚠️ Received message with missing chatKey:", msg);
+                return;
+            }
+
             // DECRYPT INCOMING
             const decryptedMsg = decryptMessageObject(msg);
 

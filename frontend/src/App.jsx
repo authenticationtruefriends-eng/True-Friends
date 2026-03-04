@@ -61,18 +61,30 @@ function ProtectedRoute({ children }) {
 
 import ErrorBoundary from "./components/common/ErrorBoundary";
 
-function App() {
-  const [showSplash, setShowSplash] = useState(false);
+function ThemeManager() {
+  const location = useLocation();
 
-  // Initialize theme
   useEffect(() => {
+    // FORCE LIGHT THEME for branding/auth pages as requested
+    const authRoutes = ['/login', '/signup', '/welcome', '/forgot-password', '/reset-password-otp', '/set-new-password', '/verify'];
+    if (authRoutes.includes(location.pathname)) {
+      document.documentElement.setAttribute('data-theme', 'light');
+      return;
+    }
+
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
       document.documentElement.setAttribute('data-theme', savedTheme);
     } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       document.documentElement.setAttribute('data-theme', 'dark');
     }
-  }, []);
+  }, [location.pathname]);
+
+  return null;
+}
+
+function App() {
+  const [showSplash, setShowSplash] = useState(false);
 
   // Listen for login/signup success events
   useEffect(() => {
@@ -92,6 +104,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ThemeManager />
       <ErrorBoundary>
         {showSplash && <SplashAnimation onComplete={handleSplashComplete} />}
         {/* ThemeToggle removed */}

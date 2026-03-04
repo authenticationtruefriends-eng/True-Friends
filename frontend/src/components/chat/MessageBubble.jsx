@@ -118,12 +118,17 @@ const CodeBlock = ({ inline, className, children, ...props }) => {
   );
 };
 
-// Custom Markdown Image Component
 const MarkdownImage = ({ src, alt, onImageClick, ...props }) => {
+  const finalSrc = getConstructedUrl(src);
+
   return (
     <img
-      src={src}
+      src={finalSrc}
       alt={alt || "Image"}
+      loading="lazy"
+      onError={(e) => {
+        console.error("❌ Image Load Failed:", finalSrc);
+      }}
       style={{
         maxWidth: '100%',
         width: '250px',
@@ -138,7 +143,7 @@ const MarkdownImage = ({ src, alt, onImageClick, ...props }) => {
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (onImageClick) onImageClick(src);
+        if (onImageClick) onImageClick(finalSrc);
       }}
       {...props}
     />
@@ -216,8 +221,8 @@ export default function MessageBubble({ message, isMine, chatId, onImageClick, o
 
       const decryptionPromise = (async () => {
         try {
-          // Fetch the encrypted file as ArrayBuffer for binary safety
-          const response = await fetch(fileUrl);
+          // Fetch the encrypted file with encodeURI to handle spaces/symbols
+          const response = await fetch(encodeURI(fileUrl));
           if (!response.ok) {
             throw new Error(`Failed to fetch encrypted file: ${response.status}`);
           }
@@ -286,7 +291,7 @@ export default function MessageBubble({ message, isMine, chatId, onImageClick, o
 
     setIsDecrypting(true);
     try {
-      const response = await fetch(fileUrl);
+      const response = await fetch(encodeURI(fileUrl));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const buffer = await response.arrayBuffer();

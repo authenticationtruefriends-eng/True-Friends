@@ -63,10 +63,7 @@ function downloadImage(url, fileBase, targetDir, redirectCount = 0) {
         const requestOptions = {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-                'Referer': 'https://image.pollinations.ai/',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
+                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
             },
             timeout: 30000 // 30 second timeout
         };
@@ -156,13 +153,10 @@ export async function downloadAndCacheImage(pollinationsUrl, prompt) {
         }
 
         // Download the image and get the final URL
-        console.log(`🤖 DEBUG: Calling downloadImage for ${pollinationsUrl}`);
-        const result = await downloadImage(pollinationsUrl, fileBase, AI_IMAGES_DIR);
-        console.log(`🤖 DEBUG: downloadImage finished: ${result}`);
-        return result;
+        return await downloadImage(pollinationsUrl, fileBase, AI_IMAGES_DIR);
     } catch (error) {
-        console.error('❌ Image proxy error (Falling back to original URL):', error.message);
-        // Fallback: return original URL (client browser will try to load it directly)
+        console.error('❌ Image proxy error:', error);
+        // Fallback: return original URL (will likely fail in browser due to CORS, but better than nothing)
         return pollinationsUrl;
     }
 }

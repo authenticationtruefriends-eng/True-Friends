@@ -17,8 +17,21 @@ import crypto from "crypto";
 import multer from "multer";
 import jwt from "jsonwebtoken"; // Fix ReferenceError
 import { v2 as cloudinary } from 'cloudinary';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import pkg from 'multer-storage-cloudinary';
+const { CloudinaryStorage } = pkg;
+
 import { google } from "googleapis";
+import mongoose from 'mongoose';
+import User from './models/User.js';
+import Message from './models/Message.js';
+import Group from './models/Group.js';
+
+// --- MONGO DB CONNECTION ---
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/true-friends';
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('✅ Connected to MongoDB isolated database'))
+  .catch(err => console.error('❌ MongoDB Connection Error:', err));
+// ----------------------------
 
 
 // dotenv.config(); // Loaded at start
@@ -193,68 +206,14 @@ app.use('/uploads', (req, res, next) => {
 }));
 
 // --- Data Stores ---
-let userStore = new Map();
-const groupStore = new Map();
-const chatsStore = new Map();
 const onlineUsers = new Map(); // uid -> socketId
-let verificationStore = new Map(); // Changed to let for re-assignment during load
+let verificationStore = new Map();
 
 // Password Reset & Rate Limiting Stores
 const passwordResetStore = new Map(); // email -> { otpHash, expiresAt, attempts, resetToken, resetTokenExpiry }
 const otpRequestLimitStore = new Map(); // email -> { count, lastRequestTime, lockedUntil }
 const otpVerifyLimitStore = new Map(); // email -> { attempts, lockedUntil }
 const loginAttemptStore = new Map(); // username/email -> { failedAttempts, lockedUntil, timeoutLevel }
-
-// --- Persistence ---
-const DATA_DIR = path.join(process.cwd(), 'data');
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
-
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-const GROUPS_FILE = path.join(DATA_DIR, 'groups.json');
-const CHATS_FILE = path.join(DATA_DIR, 'chats.json');
-const VERIFICATIONS_FILE = path.join(DATA_DIR, 'verifications.json');
-
-// Load Data
-try {
-  if (fs.existsSync(USERS_FILE)) {
-    const data = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-    userStore = new Map(Object.entries(data)); // Load as Map
-    console.log(`✅ Loaded ${userStore.size} users`);
-  }
-  if (fs.existsSync(GROUPS_FILE)) {
-    const data = JSON.parse(fs.readFileSync(GROUPS_FILE, 'utf8'));
-    Object.values(data).forEach(g => groupStore.set(g.id, g));
-    console.log(`✅ Loaded ${groupStore.size} groups`);
-  }
-  if (fs.existsSync(CHATS_FILE)) {
-    const data = JSON.parse(fs.readFileSync(CHATS_FILE, 'utf8'));
-    Object.entries(data).forEach(([k, v]) => chatsStore.set(k, v));
-    console.log(`✅ Loaded ${chatsStore.size} chats`);
-  }
-} catch (e) {
-  console.error("❌ Error loading data:", e);
-}
-
-// Save Functions
-function saveUsers() {
-  try {
-    const obj = Object.fromEntries(userStore);
-    fs.writeFileSync(USERS_FILE, JSON.stringify(obj, null, 2));
-  } catch (err) {
-    console.error("❌ Error saving users:", err);
-  }
-}
-
-function saveVerifications() {
-  try {
-    const obj = Object.fromEntries(verificationStore);
-    fs.writeFileSync(VERIFICATIONS_FILE, JSON.stringify(obj, null, 2));
-  } catch (err) {
-    console.error("❌ Error saving verifications:", err);
-  }
-}
-const saveGroups = () => fs.writeFileSync(GROUPS_FILE, JSON.stringify(Object.fromEntries(groupStore), null, 2));
-const saveChats = () => fs.writeFileSync(CHATS_FILE, JSON.stringify(Object.fromEntries(chatsStore), null, 2));
 
 app.get('/test-upload', (req, res) => {
   const files = fs.readdirSync(uploadDir);
@@ -263,9 +222,13 @@ app.get('/test-upload', (req, res) => {
 
 app.post("/api/upload", upload.single("image"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+  // Sanitize filename for the URL even if disk storage has a unique one
+  const safeFilename = encodeURIComponent(req.file.filename);
+
   res.json({
     success: true,
-    url: `/uploads/${req.file.filename}`,
+    url: `/uploads/${safeFilename}`,
     fileName: req.file.originalname
   });
 });
@@ -304,7 +267,9 @@ app.post("/api/upload-encrypted", async (req, res) => {
     }
 
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const filename = uniqueSuffix + '.enc';
+    // Sanitize extension and base filename
+    const safeExt = path.extname(originalName).replace(/[^a-z0-9.]/gi, '').toLowerCase() || '.enc';
+    const filename = uniqueSuffix + safeExt;
     const filePath = path.join(uploadDir, filename);
 
     fs.writeFileSync(filePath, rawData, 'utf8');
@@ -356,7 +321,9 @@ app.post("/api/upload-finalize", async (req, res) => {
   }
 
   const fileChunkDir = path.join(chunkDir, fileId);
-  const finalFilename = `${Date.now()}-${fileName}.enc`;
+  // SANITIZE FILENAME: Remove spaces, special chars, keep only alphanumeric, dots, dashes
+  const sanitizedName = fileName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
+  const finalFilename = `${Date.now()}-${sanitizedName}.enc`;
   const finalPath = path.join(uploadDir, finalFilename);
 
   const writeStream = fs.createWriteStream(finalPath);
@@ -403,28 +370,33 @@ app.post("/api/upload-finalize", async (req, res) => {
 
 // Duplicate endpoint removed as it's merged into the one above
 
-
 // Get user profile by ID
-app.get("/api/user/profile/:userId", (req, res) => {
+app.get("/api/user/profile/:userId", async (req, res) => {
   const { userId } = req.params;
-  const user = userStore.get(userId) || userStore.get(userId.toLowerCase());
 
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
+  try {
+    const user = await User.findOne({ uid: userId.toLowerCase() });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Return user profile data
+    res.json({
+      uid: user.uid,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      friendCode: user.friendCode,
+      bio: user.bio,
+      phone: user.phone,
+      birthday: user.birthday,
+      location: user.location,
+      joinedAt: user.joinedAt
+    });
+  } catch (error) {
+    console.error("❌ Profile Fetch Error:", error);
+    res.status(500).json({ error: "Database error" });
   }
-
-  // Return user profile data
-  res.json({
-    uid: user.uid,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
-    friendCode: user.friendCode,
-    bio: user.bio,
-    phone: user.phone,
-    birthday: user.birthday,
-    location: user.location,
-    joinedAt: user.joinedAt
-  });
 });
 
 // --- Proxy: Giphy API (Fixes CORS/Network Block issues) ---
@@ -535,102 +507,60 @@ const sendVerificationEmail = async (email, otp) => {
   }
 };
 
+
+
 // API: Check Username Availability
-app.get("/api/check-username", (req, res) => {
+app.get("/api/check-username", async (req, res) => {
   const { username } = req.query;
   if (!username) return res.json({ available: false });
+  const uid = String(username).replace(/\s+/g, '_').toLowerCase();
 
-  const uid = username.replace(/\s+/g, '_').toLowerCase();
-  const isTaken = userStore.has(uid);
-
-  // Also check if they are in "verificationStore" (OTP sent but not verified)
-  // We should probably consider that "taken" too to prevent duplicate signups?
-  // Actually, if it's unverified, maybe we allow re-signup? 
-  // But for UI feedback, let's say "Taken" if active user exists.
-
-  res.json({ available: !isTaken });
+  try {
+    const existingUser = await User.findOne({ uid });
+    // A username is ONLY "taken" if a VERIFIED user owns it or if it exists in DB (we assume DB users are verified or in transition)
+    res.json({ available: !existingUser });
+  } catch (error) {
+    res.json({ available: false });
+  }
 });
 
 // API: Signup (Step 1 - Send OTP)
 app.post("/api/signup", async (req, res) => {
-  console.log("👉 /api/signup hit!");
-  // console.log("Body:", req.body); // SECURITY: Don't log passwords!
-  let { username, password, email } = req.body; // Use let
+  let { username, password, email } = req.body;
   if (!username || !password || !email) {
-    console.log("❌ Missing fields");
     return res.status(400).json({ success: false, error: "All fields are required" });
   }
 
-  // Sanitize
   username = username.trim();
   email = email.trim();
-
   const normalizedEmail = email.toLowerCase();
-  const emailDomain = normalizedEmail.split('@')[1];
-
-  // WHITELIST APPROACH - Only allow trusted email providers
-  const ALLOWED_DOMAINS = [
-    // Google
-    "gmail.com",
-    // Microsoft/Outlook
-    "outlook.com", "hotmail.com", "live.com", "msn.com",
-    // Yahoo
-    "yahoo.com", "ymail.com", "rocketmail.com", "yahoo.co.in", "yahoo.co.uk",
-    // Zoho
-    "zoho.com", "zohomail.com", "zoho.eu",
-    // ProtonMail
-    "proton.me", "protonmail.com", "pm.me",
-    // Apple
-    "icloud.com", "me.com", "mac.com",
-    // AOL
-    "aol.com",
-    // GMX
-    "gmx.com", "gmx.net", "gmx.de",
-    // Mail.com
-    "mail.com",
-    // Other legitimate providers
-    "fastmail.com", "tutanota.com", "mailfence.com"
-  ];
-
-  if (!ALLOWED_DOMAINS.includes(emailDomain)) {
-    console.log(`🚫 Blocked non-whitelisted email domain: ${emailDomain}`);
-    return res.status(400).json({
-      success: false,
-      error: "Please use a trusted email provider (Gmail, Yahoo, Outlook, Zoho, ProtonMail, iCloud, etc.)"
-    });
-  }
-
-  // Check if user already exists
   const uid = username.replace(/\s+/g, '_').toLowerCase();
 
-  // Check if UID taken
-  if (userStore.has(uid)) {
-    return res.status(400).json({ success: false, error: "Username already taken" });
-  }
-
-  // Check if Email taken
-  for (const u of userStore.values()) {
-    if (u.email === normalizedEmail) {
-      return res.status(400).json({ success: false, error: "Email already registered" });
+  try {
+    // Check if user already exists in MongoDB
+    const existingUser = await User.findOne({ $or: [{ uid }, { email: normalizedEmail }] });
+    if (existingUser) {
+      return res.status(400).json({ success: false, error: "Username or Email already registered" });
     }
+
+    // Generate OTP
+    const otp = generateOTP();
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+
+    // Store temporarily in memory (transient)
+    verificationStore.set(normalizedEmail, {
+      otp,
+      expiresAt,
+      userData: { username, password, email: normalizedEmail, uid }
+    });
+
+    sendVerificationEmail(normalizedEmail, otp);
+    res.json({ success: true, message: "Verification code sent to email", step: "verify" });
+
+  } catch (error) {
+    console.error("❌ Signup error:", error);
+    res.status(500).json({ success: false, error: "Server error" });
   }
-
-  // Generate OTP
-  const otp = generateOTP();
-  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-  // Store temporarily
-  verificationStore.set(normalizedEmail, {
-    otp,
-    expiresAt,
-    userData: { username, password, email: normalizedEmail, uid }
-  });
-  saveVerifications(); // Persistence Fix
-
-  // Send Email in background - Respond immediately
-  sendVerificationEmail(normalizedEmail, otp);
-
-  res.json({ success: true, message: "Verification code sent to email", step: "verify" });
 });
 
 // API: Resend OTP
@@ -649,7 +579,6 @@ app.post("/api/resend-otp", async (req, res) => {
   record.otp = otp;
   record.expiresAt = Date.now() + 10 * 60 * 1000;
   verificationStore.set(normalizedEmail, record);
-  saveVerifications(); // Persistence Fix
 
   const emailSent = await sendVerificationEmail(normalizedEmail, otp);
   if (emailSent) {
@@ -660,7 +589,7 @@ app.post("/api/resend-otp", async (req, res) => {
 });
 
 // API: Verify OTP (Step 2 - Create Account)
-app.post("/api/verify-otp", (req, res) => {
+app.post("/api/verify-otp", async (req, res) => {
   const { email, otp } = req.body;
   if (!email) return res.status(400).json({ success: false, error: "Email is required" });
   const normalizedEmail = String(email).trim().toLowerCase();
@@ -672,75 +601,43 @@ app.post("/api/verify-otp", (req, res) => {
 
   if (Date.now() > record.expiresAt) {
     verificationStore.delete(normalizedEmail);
-    saveVerifications(); // Persistence Fix
     return res.status(400).json({ success: false, error: "Verification code expired" });
   }
 
-  // Verify OTP Code
   if (String(record.otp).trim() !== String(otp).trim()) {
     return res.status(400).json({ success: false, error: "Incorrect verification code" });
   }
 
-  // Success! Create the user now.
-  const { userData } = record;
-  const { uid, username, password } = userData;
-  const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+  try {
+    // Success! Create the user in MongoDB
+    const { userData } = record;
+    const { uid, username, password } = userData;
+    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
 
-  if (userStore.has(uid)) {
-    // IDEMPOTENCY CHECK
-    const existing = userStore.get(uid);
+    const newUser = new User({
+      uid: uid,
+      displayName: username,
+      email: userData.email,
+      passwordHash: passwordHash,
+      photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+      friendCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+      bio: "Hi there! I am using True Friends.",
+      joinedAt: Date.now(),
+      isOnboarded: false
+    });
 
-    console.log(`💥 RACE CONDITION DEBUG:`);
-    console.log(`   -> Target UID: ${uid}`);
-    console.log(`   -> Existing Email: '${existing.email}'`);
-    console.log(`   -> New Verif Email: '${userData.email}'`);
+    await newUser.save();
+    verificationStore.delete(normalizedEmail);
 
-    // Allow if email matches OR if the existing record is corrupted (undefined email)
-    if (!existing.email || existing.email === userData.email) {
-      console.log(`⚠️ Race condition/Overwrite handled: User ${uid} verified.`);
+    console.log(`👤 New User Signed Up (Verified): ${username} (${uid})`);
 
-      // If corrupted (no email), we should probably UPDATE the user record with the new full data
-      if (!existing.email) {
-        console.log(`   -> Repairing corrupted user record...`);
-        // Fall through to normal creation logic to OVERWRITE the bad record
-      } else {
-        // Normal idempotent success
-        verificationStore.delete(normalizedEmail);
-        saveVerifications();
-        return res.json({ success: true, user: existing });
-      }
-    } else {
-      return res.status(400).json({ success: false, error: "Username taken by another email" });
-    }
+    const token = jwt.sign({ uid, name: username }, SECRET_KEY, { expiresIn: "7d" });
+    res.json({ success: true, token, user: newUser });
+
+  } catch (error) {
+    console.error("❌ Verify OTP Error:", error);
+    res.status(500).json({ success: false, error: "Error creating user" });
   }
-
-  const newUser = {
-    uid: uid,
-    displayName: username,
-    email: userData.email,
-    passwordHash: passwordHash, // Store hash
-    photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-    friendCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-    bio: "Hi there! I am using True Friends.",
-    phone: "",
-    birthday: "",
-    location: "",
-    joinedAt: Date.now(),
-    isVerified: true, // Email Verified!
-    isOnboarded: false,
-    createdAt: new Date().toISOString(),
-  };
-
-  userStore.set(uid, newUser);
-  saveUsers();
-  verificationStore.delete(normalizedEmail); // Cleanup
-  saveVerifications(); // Persistence Fix
-
-  console.log(`👤 New User Signed Up (Verified): ${username} (${uid})`);
-
-  // Login immediately
-  const token = jwt.sign({ uid, name: username }, SECRET_KEY, { expiresIn: "7d" });
-  res.json({ success: true, token, user: newUser });
 });
 
 // Rate Limiting Store (Moved to Global Scope)
@@ -762,7 +659,6 @@ app.post("/api/cancel-signup", (req, res) => {
 
   if (verificationStore.has(normalizedEmail)) {
     verificationStore.delete(normalizedEmail); // Delete OTP
-    saveVerifications();
     console.log(`🚫 Signup cancelled for ${normalizedEmail}. OTP invalidated.`);
   }
 
@@ -792,12 +688,11 @@ app.post("/api/forgot-password", async (req, res) => {
   if (!email || typeof email !== 'string') return res.status(400).json({ success: false, error: "Valid email is required" });
   const normalizedEmail = email.trim().toLowerCase();
 
-  // Check if user exists
-  const user = Array.from(userStore.values()).find(u => u.email?.toLowerCase() === normalizedEmail);
+  // Check if user exists in MongoDB
+  const user = await User.findOne({ email: normalizedEmail });
   if (!user) {
     console.log(`❌ Forgot Password: User not found for email '${normalizedEmail}'`);
-    // TEMPORARY DEBUG: Reveal failure
-    return res.status(404).json({ success: false, error: "DEBUG MODE: User not found in database. Did the server restart?" });
+    return res.status(404).json({ success: false, error: "User not found" });
   }
 
   // Rate Limiting: Check if locked out
@@ -954,7 +849,7 @@ app.post("/api/verify-reset-otp", (req, res) => {
 });
 
 // API: Reset Password (Step 3 - Set New Password)
-app.post("/api/reset-password", (req, res) => {
+app.post("/api/reset-password", async (req, res) => {
   const { resetToken, newPassword } = req.body;
   if (!resetToken || !newPassword) {
     return res.status(400).json({ success: false, error: "Reset token and new password are required" });
@@ -981,8 +876,8 @@ app.post("/api/reset-password", (req, res) => {
     return res.status(400).json({ success: false, error: "Reset token expired" });
   }
 
-  // Find user and update password
-  const user = Array.from(userStore.values()).find(u => u.email?.toLowerCase() === targetEmail);
+  // Find user and update password in MongoDB
+  const user = await User.findOne({ email: targetEmail.toLowerCase() });
   if (!user) {
     return res.status(400).json({ success: false, error: "User not found" });
   }
@@ -990,93 +885,75 @@ app.post("/api/reset-password", (req, res) => {
   // Update password
   const newPasswordHash = crypto.createHash('sha256').update(newPassword).digest('hex');
   user.passwordHash = newPasswordHash;
-  userStore.set(user.uid, user);
-  saveUsers();
+  await user.save();
 
   // Cleanup
   passwordResetStore.delete(targetEmail);
   otpRequestLimitStore.delete(targetEmail);
   otpVerifyLimitStore.delete(targetEmail);
 
-  console.log(`🔐 Password reset successful for ${targetEmail}`);
+  console.log(`🔐 Password reset successful in DB for ${targetEmail}`);
   res.json({ success: true, message: "Password reset successful" });
 });
 
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ success: false, error: "Username and password required" });
   }
 
-  const identifier = username.trim().toLowerCase(); // Normalize
+  const identifier = username.trim().toLowerCase();
+  const normalizedUid = identifier.replace(/\s+/g, '_');
 
-  // 1. CHECK LOCKOUT
+  // 1. CHECK LOCKOUT (In-memory is fine for rate-limiting, but DB is better for production)
   const record = loginAttemptsStore.get(identifier) || { attempts: 0, lockoutLevel: 0, lastLockoutDuration: 0, lockedUntil: 0 };
 
   if (record.lockedUntil > Date.now()) {
-    const remainingMs = record.lockedUntil - Date.now();
-    const remainingMinutes = Math.ceil(remainingMs / 60000);
-    const remainingHours = Math.ceil(remainingMinutes / 60);
-
-    let timeText = `${remainingMinutes} minutes`;
-    if (remainingMinutes > 90) timeText = `${remainingHours} hours`;
-
     return res.status(429).json({
       success: false,
-      error: `Too many attempts. Try again in ${timeText}.`,
+      error: `Too many attempts. Account locked.`,
       lockedUntil: record.lockedUntil
     });
   }
 
-  // 2. CHECK CREDENTIALS
-  const user = Array.from(userStore.values()).find(u =>
-    u.uid === identifier.replace(/\s+/g, '_') || u.email === identifier
-  );
-
-  let isAuthenticated = false;
-  if (user) {
-    const inputHash = crypto.createHash('sha256').update(password).digest('hex');
-    if (user.passwordHash === inputHash) {
-      isAuthenticated = true;
-    }
-  }
-
-  // 3. HANDLE FAILURE
-  if (!isAuthenticated) {
-    record.attempts += 1;
-    const maxAttempts = 5;
-    const remaining = maxAttempts - record.attempts;
-
-    if (record.attempts >= maxAttempts) {
-      // TRIGGER LOCKOUT
-      record.lockoutLevel += 1;
-      const durationHours = getLockoutDuration(record.lockoutLevel, record.lastLockoutDuration);
-      record.lastLockoutDuration = durationHours;
-      record.lockedUntil = Date.now() + (durationHours * 60 * 60 * 1000);
-      record.attempts = 0; // Reset attempts for next cycle
-
-      loginAttemptsStore.set(identifier, record);
-
-      console.log(`🔒 User ${identifier} locked out for ${durationHours} hours (Level ${record.lockoutLevel})`);
-      return res.status(429).json({
-        success: false,
-        error: `Account locked for ${durationHours} hour(s) due to multiple failed attempts.`,
-        lockedUntil: record.lockedUntil
-      });
-    }
-
-    loginAttemptsStore.set(identifier, record);
-    return res.status(401).json({
-      success: false,
-      error: `Invalid password. ${remaining} attempt(s) remaining`
+  // 2. CHECK CREDENTIALS in MongoDB
+  try {
+    const user = await User.findOne({
+      $or: [{ uid: normalizedUid }, { email: identifier }]
     });
+
+    let isAuthenticated = false;
+    if (user && user.passwordHash) {
+      const inputHash = crypto.createHash('sha256').update(password).digest('hex');
+      if (user.passwordHash === inputHash) {
+        isAuthenticated = true;
+      }
+    }
+
+    if (!isAuthenticated) {
+      record.attempts += 1;
+      const maxAttempts = 5;
+      if (record.attempts >= maxAttempts) {
+        record.lockoutLevel += 1;
+        const durationHours = getLockoutDuration(record.lockoutLevel, record.lastLockoutDuration);
+        record.lockedUntil = Date.now() + (durationHours * 60 * 60 * 1000);
+        record.attempts = 0;
+        loginAttemptsStore.set(identifier, record);
+        return res.status(429).json({ success: false, error: "Account locked.", lockedUntil: record.lockedUntil });
+      }
+      loginAttemptsStore.set(identifier, record);
+      return res.status(401).json({ success: false, error: "Invalid credentials" });
+    }
+
+    // 4. HANDLE SUCCESS
+    loginAttemptsStore.delete(identifier);
+    const token = jwt.sign({ uid: user.uid, name: user.displayName }, SECRET_KEY, { expiresIn: "7d" });
+    res.json({ success: true, token, user });
+
+  } catch (err) {
+    console.error("❌ Login Error:", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
   }
-
-  // 4. HANDLE SUCCESS
-  loginAttemptsStore.delete(identifier);
-
-  const token = jwt.sign({ uid: user.uid, name: user.displayName }, SECRET_KEY, { expiresIn: "7d" });
-  res.json({ success: true, token, user });
 });
 
 
@@ -1116,7 +993,7 @@ const io = new Server(server, {
 
 
 // --- API: User Search & Update ---
-app.post("/api/user/update-friend-id", (req, res) => {
+app.post("/api/user/update-friend-id", async (req, res) => {
   const { userId, newId } = req.body;
   if (!userId || !newId) return res.status(400).json({ success: false });
 
@@ -1124,100 +1001,117 @@ app.post("/api/user/update-friend-id", (req, res) => {
   let cleanId = newId.trim();
   if (!cleanId.startsWith("@")) cleanId = "@" + cleanId;
 
-  const alreadyTaken = Array.from(userStore.values()).some(u =>
-    u.friendCode?.toLowerCase() === cleanId.toLowerCase() && u.uid !== normalizedUid
-  );
+  try {
+    const alreadyTaken = await User.findOne({
+      friendCode: { $regex: new RegExp(`^${cleanId}$`, "i") },
+      uid: { $ne: normalizedUid }
+    });
 
-  if (alreadyTaken) return res.status(400).json({ success: false, error: "ID taken" });
+    if (alreadyTaken) return res.status(400).json({ success: false, error: "ID taken" });
 
-  const record = userStore.get(normalizedUid);
-  if (!record) return res.status(404).json({ success: false });
+    const user = await User.findOneAndUpdate(
+      { uid: normalizedUid },
+      { friendCode: cleanId },
+      { new: true }
+    );
 
-  record.friendCode = cleanId;
-  userStore.set(normalizedUid, record);
-  saveUsers();
-  res.json({ success: true, newId: cleanId });
-});
+    if (!user) return res.status(404).json({ success: false });
 
-app.get("/api/user/profile/:userId", (req, res) => {
-  const { userId } = req.params;
-  const user = userStore.get(userId) || userStore.get(userId.toLowerCase());
-
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
+    res.json({ success: true, newId: cleanId });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-
-  // Return user profile data
-  res.json({
-    uid: user.uid,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
-    friendCode: user.friendCode,
-    bio: user.bio,
-    phone: user.phone,
-    birthday: user.birthday,
-    location: user.location,
-    joinedAt: user.joinedAt
-  });
 });
 
-app.post("/api/user/search", (req, res) => {
+app.get("/api/user/profile/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const normalized = userId.toLowerCase();
+
+  try {
+    const user = await User.findOne({ uid: normalized });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.json({
+      success: true,
+      user: {
+        uid: user.uid,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        friendCode: user.friendCode,
+        bio: user.bio,
+        phone: user.phone,
+        birthday: user.birthday,
+        location: user.location,
+        joinedAt: user.joinedAt
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.post("/api/user/search", async (req, res) => {
   const { query } = req.body;
   if (!query) return res.status(400).json({ success: false });
   const term = query.toLowerCase();
-  const results = [];
-  for (const user of userStore.values()) {
-    if (!user || !user.uid) continue;
-    if (user.uid.toLowerCase().includes(term) || user.friendCode?.toLowerCase().includes(term)) {
-      results.push(user);
-      if (results.length >= 10) break;
-    }
+
+  try {
+    const results = await User.find({
+      $or: [
+        { uid: { $regex: term, $options: 'i' } },
+        { friendCode: { $regex: term, $options: 'i' } },
+        { displayName: { $regex: term, $options: 'i' } }
+      ]
+    }).limit(10);
+
+    res.json({ success: true, results });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Search failed" });
   }
-  res.json({ success: true, results });
 });
 
-app.post("/api/user/update-profile", (req, res) => {
+app.post("/api/user/update-profile", async (req, res) => {
   const { userId, profile } = req.body;
-  console.log(`📝 Update Profile Request for: ${userId}`, profile);
-
   if (!userId || !profile) return res.status(400).json({ success: false });
   const normalizedUid = String(userId).toLowerCase();
 
-  // Debug log
-  console.log(`   -> Normalized UID: ${normalizedUid}`);
-  console.log(`   -> Current Store has it? ${userStore.has(normalizedUid)}`);
+  try {
+    const updateData = {};
+    ['displayName', 'bio', 'phone', 'dob', 'photoURL', 'birthday', 'location'].forEach(field => {
+      if (profile[field] !== undefined) updateData[field] = profile[field];
+    });
 
-  const record = userStore.get(normalizedUid) || { uid: normalizedUid };
+    const user = await User.findOneAndUpdate(
+      { uid: normalizedUid },
+      { $set: updateData },
+      { new: true, upsert: true }
+    );
 
-  ['displayName', 'bio', 'phone', 'dob', 'photoURL'].forEach(field => {
-    if (profile[field] !== undefined) {
-      console.log(`   -> Updating ${field}: ${record[field]} -> ${profile[field]}`);
-      record[field] = profile[field];
-    }
-  });
-
-  userStore.set(normalizedUid, record);
-  saveUsers();
-  res.json({ success: true, user: record });
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Update failed" });
+  }
 });
 
-app.post("/api/user/complete-onboarding", (req, res) => {
+app.post("/api/user/complete-onboarding", async (req, res) => {
   const { userId } = req.body;
   if (!userId) return res.status(400).json({ success: false });
 
   const normalizedUid = String(userId).toLowerCase();
-  const record = userStore.get(normalizedUid);
 
-  if (!record) return res.status(404).json({ success: false, error: "User not found" });
+  try {
+    const user = await User.findOneAndUpdate(
+      { uid: normalizedUid },
+      { isOnboarded: true },
+      { new: true }
+    );
 
-  record.isOnboarded = true;
-  userStore.set(normalizedUid, record);
-  saveUsers();
+    if (!user) return res.status(404).json({ success: false, error: "User not found" });
 
-  console.log(`✅ Onboarding completed for: ${normalizedUid}`);
-  res.json({ success: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
 });
 
 
@@ -1225,71 +1119,68 @@ app.post("/api/user/complete-onboarding", (req, res) => {
 io.on("connection", (socket) => {
   console.log("New client connected:", socket.id);
 
-  // Legacy & New Connection Handler
-  const handleUserOnline = (userId, profileData = {}) => {
-    if (!userId) return;
-    const normalized = userId.replace(/\s+/g, '_').toLowerCase();
+  const handleUserOnline = async (userId, profileData = {}) => {
+    if (!userId || userId === "undefined" || userId === "null") return;
+    const normalized = String(userId).replace(/\s+/g, '_').toLowerCase();
 
-    // Join rooms for this UID to support multi-tab/device sync
     socket.join(normalized);
-    if (userId !== normalized) socket.join(userId);
-
     onlineUsers.set(normalized, socket.id);
-    onlineUsers.set(userId, socket.id); // Store original too
 
-    // Auto-create or Update user record
-    let user = userStore.get(normalized);
-    if (!user) {
-      // Generate default friendCode if new
-      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-      user = {
-        uid: normalized,
-        displayName: profileData.displayName || userId,
-        photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
-        friendCode: `@${normalized}${randomSuffix}`
-      };
-      userStore.set(normalized, user);
-      saveUsers();
+    try {
+      let user = await User.findOne({ uid: normalized });
+
+      if (!user) {
+        const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+        user = new User({
+          uid: normalized,
+          displayName: profileData.displayName || userId,
+          photoURL: profileData.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
+          friendCode: `@${normalized}${randomSuffix}`
+        });
+        await user.save();
+        console.log(`🆕 Created new MongoDB user: ${normalized}`);
+      }
+
+      if (user.friendCode) {
+        socket.join(user.friendCode.toLowerCase());
+      }
+
+      socket.emit("my-profile", user);
+
+      // Fetch user's groups from MongoDB
+      const myGroups = await Group.find({ members: normalized });
+      socket.emit("my-groups", myGroups);
+
+      // Broadcast online status
+      const uniqueOnlineUids = Array.from(onlineUsers.keys())
+        .filter(k => !k.startsWith("@"))
+        .map(k => k.toLowerCase());
+
+      const finalOnlineList = Array.from(new Set([...uniqueOnlineUids, "ai_friend"]));
+      io.emit("online-users", finalOnlineList);
+
+    } catch (error) {
+      console.error("❌ MongoDB User Handle Error:", error);
     }
-
-    // Join room for Friend Code as well
-    if (user.friendCode) {
-      const fcRoom = user.friendCode.toLowerCase();
-      socket.join(fcRoom);
-      onlineUsers.set(fcRoom, socket.id);
-    }
-
-    // Send back profile
-    socket.emit("my-profile", user);
-
-    // Send user's groups
-    const myGroups = Array.from(groupStore.values()).filter(g =>
-      g.members.includes(normalized) || g.members.includes(userId)
-    );
-    socket.emit("my-groups", myGroups);
-
-    // DEDUPLICATED ONLINE USERS: Only emit unique normalized UIDs
-    const allOnlineKeys = Array.from(onlineUsers.keys());
-    const uniqueOnlineUids = Array.from(new Set(
-      allOnlineKeys
-        .filter(k => userStore.has(k.toLowerCase()) && !k.startsWith("@"))
-        .map(k => k.toLowerCase())
-    ));
-    io.emit("online-users", uniqueOnlineUids);
   };
 
   socket.on("user-online", (userId) => handleUserOnline(userId));
 
   socket.on("join", (data) => {
-    // Data = { userId, displayName }
     if (data && data.userId) handleUserOnline(data.userId, data);
   });
 
-  socket.on("get-my-profile", ({ userId }) => {
+  socket.on("get-my-profile", async ({ userId }) => {
     if (!userId) return;
     const normalized = userId.replace(/\s+/g, '_').toLowerCase();
-    const user = userStore.get(normalized);
-    if (user) socket.emit("my-profile", user);
+    try {
+      const user = await User.findOne({ uid: normalized });
+      if (user) {
+        socket.emit("my-profile", user);
+      }
+    } catch (err) {
+      console.error("❌ Get Profile Error:", err);
+    }
   });
 
   // Call Signaling
@@ -1298,13 +1189,11 @@ io.on("connection", (socket) => {
     io.to(targetRoom).to(to).emit("incoming-p2p-call", { from, type, peerId });
   });
 
-  // NEW: Ring Received Acknowledgment (High-Fidelity)
   socket.on("ring-received", ({ to }) => {
     const targetRoom = to.replace(/\s+/g, '_').toLowerCase();
     io.to(targetRoom).to(to).emit("ring-received");
   });
 
-  // Generic Signaling Relay for Random PeerIDs (Offer, Answer, Candidates if needed manual, or just ID exchange)
   socket.on("signal-peer-id", ({ to, type, payload }) => {
     const targetRoom = to.replace(/\s+/g, '_').toLowerCase();
     io.to(targetRoom).to(to).emit("signal-peer-id", { from: socket.id, type, payload });
@@ -1315,265 +1204,127 @@ io.on("connection", (socket) => {
     io.to(targetRoom).to(to).emit("call-ended");
   });
 
-  socket.on("ring-group", ({ groupId, from }) => {
-    const group = groupStore.get(groupId) || groupStore.get(groupId.toLowerCase());
-    if (group) {
-      group.members.forEach(memberId => {
-        if (memberId !== from) {
-          const targetRoom = memberId.replace(/\s+/g, '_').toLowerCase();
-          io.to(targetRoom).to(memberId).emit("incoming-group-call", { from, groupId, groupName: group.name });
-        }
-      });
+  socket.on("ring-group", async ({ groupId, from }) => {
+    try {
+      const group = await Group.findOne({ groupId });
+      if (group) {
+        group.members.forEach(memberId => {
+          if (memberId !== from.toLowerCase()) {
+            const targetRoom = memberId.replace(/\s+/g, '_').toLowerCase();
+            io.to(targetRoom).to(memberId).emit("incoming-group-call", { from, groupId, groupName: group.name });
+          }
+        });
+      }
+    } catch (err) {
+      console.error("❌ Ring Group Error:", err);
     }
   });
 
   // Chat Messaging
   socket.on("send-message", async ({ to, message, from }) => {
-    const targetRoom = to.replace(/\s+/g, '_').toLowerCase();
-    const senderRoom = from.replace(/\s+/g, '_').toLowerCase();
+    if (!from || from === "undefined" || from === "null") return;
+    if (!to || to === "undefined" || to === "null") return;
 
-    console.log(`📩 Message to room ${targetRoom} (from ${from}):`, { id: message.msgId || message.id });
+    const normalizedFrom = String(from).toLowerCase();
+    const normalizedTo = String(to).toLowerCase();
+    const senderRoom = normalizedFrom.replace(/\s+/g, '_');
 
-    // 🤖 AI BOT DETECTION - Handle messages to AI Friend
-    if (to === "ai_friend") {
-      console.log(`🤖 AI Friend message detected from ${from}`);
-
-      // 1. Decrypt incoming message
-      let userText = message.text;
+    // 🤖 AI BOT DETECTION
+    if (normalizedTo === "ai_friend") {
       try {
-        if (message.encrypted) {
-          // Attempt to decrypt if encrypted flag is set (requires key sharing implementation or symmetric key)
-          // For now, assuming internal AI logic uses decrypted text passed from frontend in a specific way OR 
-          // we use the raw text if it's already decrypted by client before sending (which is not standard E2E but simplifying for AI)
-          // Actually, our previous implementation decrypted on client. 
-          // BUT, to process on backend, we need to decrypt it here provided we have the key or it was sent basically.
-          // Wait - in Step 8286 we implemented backend decryption! 
-          userText = decryptMessage(message.text);
-        }
-      } catch (err) {
-        console.error("Decryption failed for AI:", err.message);
-        userText = message.text; // Fallback
-      }
-
-      console.log(`🤖 AI User Input: ${userText}`);
-
-      // --- NEW: TASK REMINDER SYSTEM ---
-      // Detect intent: "I need to...", "I want to...", "I will..."
-      const taskRegex = /\b(i need to|i have to|i want to|i'm going to|im going to|i will|gonna)\b\s+(.+)/i;
-      const match = userText.match(taskRegex);
-
-      if (match && match[2] && !userText.toLowerCase().includes("remind")) {
-        const task = match[2];
-        console.log(`⏰ Task detected: ${task}`);
-
-        // Schedule reminder for 1 hour (for demo purpose, maybe shorter? User said "like houre")
-        // Using 1 hour = 3600000 ms. 
-        // For testing/demo, let's also log it clearly.
-        const delay = 60 * 60 * 1000; // 1 hour
-
-        setTimeout(() => {
-          console.log(`⏰ Sending reminder for task: ${task}`);
-          const reminderMsg = {
-            id: Date.now().toString(),
-            text: encryptMessage(`Hey! 👋 Just checking in - did you finish "${task}" yet?`),
-            sender: "ai_friend",
-            timestamp: new Date().toISOString(),
-            reactions: {},
-            replyTo: null,
-            encrypted: true
-          };
-          io.to(senderRoom).emit("receive-message", reminderMsg);
-        }, delay);
-      }
-      // ---------------------------------
-
-      try {
-        // Send user's message back to them first (so it appears in chat)
-        const userMsg = {
-          id: (message.msgId || message.id || Date.now()).toString(),
-          msgId: (message.msgId || message.id || Date.now()).toString(),
+        const userMsg = new Message({
+          msgId: (message.msgId || message.id || `msg_${Date.now()}`).toString(),
           text: message.text,
-          from: from,
+          from: normalizedFrom,
+          to: "ai_friend",
           type: message.type || 'text',
-          fromMe: true,
           time: message.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           timestamp: message.timestamp || Date.now(),
-          replyTo: message.replyTo || null
-        };
-        socket.to(senderRoom).emit("receive-message", userMsg);
+          replyTo: message.replyTo || null,
+          fileUrl: message.fileUrl || message.imageUrl || message.file
+        });
+        await userMsg.save();
 
-        // Decrypt user's message before sending to AI
         const decryptedUserMessage = decryptMessage(message.text);
-        console.log(`🔓 Decrypted message: "${decryptedUserMessage}"`);
-
-        // Generate AI response
         const attachmentUrl = message.fileUrl || message.imageUrl || message.file;
-        const aiResponseText = await generateAIResponse(from, decryptedUserMessage, attachmentUrl);
+        const aiResponseText = await generateAIResponse(normalizedFrom, decryptedUserMessage, attachmentUrl);
 
-        // Encrypt AI response before sending back
         const encryptedAIResponse = encryptMessage(aiResponseText);
-        console.log(`🔒 Encrypted AI response`);
-
-        // Create AI response message
-        const aiMsg = {
-          id: `ai_${Date.now()}`,
+        const aiMsg = new Message({
           msgId: `ai_${Date.now()}`,
           text: encryptedAIResponse,
           from: "ai_friend",
+          to: normalizedFrom,
           type: 'text',
-          fromMe: false,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          timestamp: Date.now(),
-          replyTo: null
-        };
-
-        // Send AI response to user (all their tabs)
-        io.to(senderRoom).to(from).emit("receive-message", aiMsg);
-
-        // Save both messages to chat history
-        const chatKey = [from.toLowerCase(), "ai_friend"].sort().join('_');
-        if (!chatsStore.has(chatKey)) chatsStore.set(chatKey, []);
-        const history = chatsStore.get(chatKey);
-        history.push(userMsg);
-        history.push(aiMsg);
-
-        console.log(`✅ AI response sent to ${from}`);
-        return; // Don't continue with normal message flow
-      } catch (error) {
-        console.error(`❌ AI Bot Error:`, error);
-        // Send error message to user
-        const errorMsg = {
-          id: `ai_error_${Date.now()}`,
-          msgId: `ai_error_${Date.now()}`,
-          text: "Sorry, I'm having trouble thinking right now! 🤔 Please try again in a moment.",
-          from: "ai_friend",
-          type: 'text',
-          fromMe: false,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           timestamp: Date.now()
-        };
-        io.to(senderRoom).to(from).emit("receive-message", errorMsg);
+        });
+        await aiMsg.save();
+
+        io.to(senderRoom).emit("receive-message", {
+          ...aiMsg.toObject(),
+          id: aiMsg.msgId,
+          fromMe: false
+        });
+        return;
+      } catch (error) {
+        console.error(`❌ AI Bot Handle Error:`, error);
         return;
       }
     }
 
-    // Check if recipient is online (to set delivered status)
-    const isOnline = onlineUsers.has(targetRoom) || onlineUsers.has(to);
-    console.log(`🔍 Checking Online Status for ${to} (Room: ${targetRoom}):`, {
-      isOnline,
-      onlineKeys: Array.from(onlineUsers.keys()), // CAUTION: might be large
-      hasTargetRoom: onlineUsers.has(targetRoom),
-      hasTo: onlineUsers.has(to)
-    });
+    const targetRoom = normalizedTo.replace(/\s+/g, '_');
 
-    // Normal message handling (for non-AI messages)
-    const fullMsg = {
-      id: (message.msgId || message.id || Date.now()).toString(),
-      msgId: (message.msgId || message.id || Date.now()).toString(),
-      text: message.text,
-      from: from,
-      type: message.type,
-      fileUrl: message.fileUrl || message.file,
-      imageUrl: message.imageUrl || message.fileUrl || message.file,
-      fileName: message.fileName,
-      mimeType: message.mimeType,
-      fromMe: false, // For other users
-      delivered: isOnline,
-      time: message.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timestamp: message.timestamp || Date.now(),
-      replyTo: message.replyTo || null
-    };
-
-    // Broadcast to recipient(s) - all their tabs
-    io.to(targetRoom).to(to).emit("receive-message", fullMsg);
-
-    // Also broadcast to other tabs of the sender
-    socket.to(senderRoom).emit("receive-message", { ...fullMsg, fromMe: true });
-
-    // Notify SENDER about delivery if online
-    if (isOnline) {
-      io.to(senderRoom).emit("message-delivered", {
-        messageId: fullMsg.msgId,
-        chatId: to // The chatId for the sender is the recipient
-      });
-    }
-
-    // Save to store
-    const chatKey = [from.toLowerCase(), to.toLowerCase()].sort().join('_');
-    if (!chatsStore.has(chatKey)) chatsStore.set(chatKey, []);
-    const history = chatsStore.get(chatKey);
-    history.push(fullMsg);
-    if (history.length > 100) history.shift();
-    chatsStore.set(chatKey, history);
-    saveChats();
-  });
-
-
-  socket.on("group-message", ({ groupId, from, message }) => {
-    console.log(`👥 Group Message in ${groupId} from ${from}:`, { id: message.msgId || message.id });
-    const group = groupStore.get(groupId) || groupStore.get(groupId.toLowerCase());
-    if (group) {
-      const fullMsg = {
-        id: message.msgId || message.id || Date.now(),
-        msgId: message.msgId || message.id,
+    try {
+      const newMsg = new Message({
+        msgId: (message.msgId || message.id || `msg_${Date.now()}`).toString(),
         text: message.text,
-        from: from,
-        type: message.type,
-        fileUrl: message.fileUrl || message.file,
-        imageUrl: message.imageUrl || message.fileUrl || message.file,
-        fileName: message.fileName,
-        mimeType: message.mimeType,
-        fromMe: false,
+        from: normalizedFrom,
+        to: normalizedTo,
+        type: message.type || 'text',
         time: message.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         timestamp: message.timestamp || Date.now(),
-        replyTo: message.replyTo || null
-      };
+        replyTo: message.replyTo || null,
+        fileUrl: message.fileUrl || message.imageUrl || message.file
+      });
+      await newMsg.save();
 
-      // Broadcast to all members (all their tabs)
-      group.members.forEach(memberId => {
-        const room = memberId.replace(/\s+/g, '_').toLowerCase();
-        io.to(room).to(memberId).emit("receive-group-message", { groupId, message: fullMsg });
+      io.to(targetRoom).emit("receive-message", {
+        ...newMsg.toObject(),
+        id: newMsg.msgId,
+        fromMe: false
       });
 
-      // Also broadcast to other tabs of the sender (as fromMe: true)
-      const senderRoom = from.replace(/\s+/g, '_').toLowerCase();
-      socket.to(senderRoom).emit("receive-group-message", { groupId, message: { ...fullMsg, fromMe: true } });
-
-      // Persistent Storage
-      if (typeof group.messages === 'undefined') group.messages = [];
-      group.messages.push(fullMsg);
-      if (group.messages.length > 200) group.messages.shift();
-      groupStore.set(groupId, group);
-      saveGroups();
+      socket.to(senderRoom).emit("receive-message", {
+        ...newMsg.toObject(),
+        id: newMsg.msgId,
+        fromMe: true
+      });
+    } catch (error) {
+      console.error("❌ Message Save Error:", error);
     }
   });
 
-  socket.on("create-group", ({ name, members, createdBy }, callback) => {
+  // --- Group Events ---
+  socket.on("create-group", async ({ name, members, createdBy }, callback) => {
+    const groupId = `group_${Date.now()}`;
+    const normalizedMembers = Array.from(new Set([...members, createdBy])).map(m => m.toLowerCase());
+
     try {
-      const groupId = ("group_" + Date.now()).toLowerCase();
-      const normalizedMembers = Array.from(new Set([...members, createdBy])).map(id => id.toLowerCase());
-
-      console.log(`📡 create-group request:`, { name, members, createdBy });
-
-      const newGroup = {
-        id: groupId,
+      const newGroup = new Group({
+        groupId,
         name,
         members: normalizedMembers,
-        createdBy: createdBy.toLowerCase(),
-        messages: [],
-        createdAt: new Date().toISOString()
-      };
+        createdBy: createdBy.toLowerCase()
+      });
+      await newGroup.save();
 
-      groupStore.set(groupId, newGroup);
-      saveGroups();
-
-      console.log(`✅ Group Created: ${name} (${groupId})`);
-
-      // Broadcast to all members (all their tabs)
       normalizedMembers.forEach(memberId => {
         const room = memberId.replace(/\s+/g, '_').toLowerCase();
-        console.log(`   -> Broadcasting to: ${memberId} in room: ${room}`);
-        io.to(room).to(memberId).emit("group-created", newGroup);
+        io.to(room).to(memberId).emit("group-created", {
+          ...newGroup.toObject(),
+          id: newGroup.groupId
+        });
       });
 
       if (callback) callback({ success: true, group: newGroup });
@@ -1583,375 +1334,229 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("leave-group", ({ groupId, userId }) => {
-    const group = groupStore.get(groupId) || groupStore.get(groupId.toLowerCase());
-    if (group) {
-      const normalizedUser = userId.toLowerCase();
-      group.members = group.members.filter(m => m !== normalizedUser);
+  socket.on("group-message", async ({ groupId, from, message }) => {
+    try {
+      const group = await Group.findOne({ groupId });
+      if (!group) return;
 
-      if (group.members.length === 0) {
-        groupStore.delete(groupId);
-      } else {
-        groupStore.set(groupId, group);
-      }
-      saveGroups();
+      const newMsg = new Message({
+        msgId: (message.msgId || message.id || `msg_${Date.now()}`).toString(),
+        text: message.text,
+        from: String(from).toLowerCase(),
+        to: groupId,
+        type: message.type || 'text',
+        time: message.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: message.timestamp || Date.now(),
+        fileUrl: message.fileUrl || message.imageUrl || message.file
+      });
+      await newMsg.save();
 
-      // Broadcast update to remaining members
       group.members.forEach(memberId => {
         const room = memberId.replace(/\s+/g, '_').toLowerCase();
-        io.to(room).to(memberId).emit("my-groups", Array.from(groupStore.values()).filter(g => g.members.includes(memberId)));
+        io.to(room).to(memberId).emit("receive-group-message", {
+          groupId,
+          message: { ...newMsg.toObject(), id: newMsg.msgId, fromMe: memberId.toLowerCase() === String(from).toLowerCase() }
+        });
       });
-
-      // Tell the user who left to remove it
-      const userRoom = userId.replace(/\s+/g, '_').toLowerCase();
-      io.to(userRoom).to(userId).emit("my-groups", Array.from(groupStore.values()).filter(g => g.members.includes(normalizedUser)));
-
-      console.log(`🚪 User ${userId} left group ${groupId}`);
+    } catch (error) {
+      console.error("❌ Group Message Error:", error);
     }
   });
 
-  socket.on("delete-group", ({ groupId, userId }) => {
-    const group = groupStore.get(groupId) || groupStore.get(groupId.toLowerCase());
-    if (group && group.createdBy === userId.toLowerCase()) {
-      const members = group.members;
-      groupStore.delete(groupId);
-      saveGroups();
+  socket.on("leave-group", async ({ groupId, userId }) => {
+    try {
+      const normalizedUser = userId.toLowerCase();
+      const group = await Group.findOneAndUpdate(
+        { groupId },
+        { $pull: { members: normalizedUser } },
+        { new: true }
+      );
 
-      // Notify all members
-      members.forEach(memberId => {
-        const room = memberId.replace(/\s+/g, '_').toLowerCase();
-        io.to(room).to(memberId).emit("my-groups", Array.from(groupStore.values()).filter(g => g.members.includes(memberId)));
-      });
+      if (group) {
+        if (group.members.length === 0) {
+          await Group.deleteOne({ groupId });
+        }
 
-      console.log(`🗑️ Group ${groupId} deleted by ${userId}`);
+        // Notify all members of the update
+        const formerMembers = [...group.members, normalizedUser];
+        for (const memberId of formerMembers) {
+          const memberGroups = await Group.find({ members: memberId });
+          const room = memberId.replace(/\s+/g, '_').toLowerCase();
+          io.to(room).emit("my-groups", memberGroups);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Leave Group Error:", error);
     }
   });
 
-  socket.on("add-group-member", ({ groupId, memberId, by }) => {
-    const group = groupStore.get(groupId) || groupStore.get(groupId.toLowerCase());
-    if (group) {
+  socket.on("delete-group", async ({ groupId, userId }) => {
+    try {
+      const group = await Group.findOne({ groupId });
+      if (group && group.createdBy === userId.toLowerCase()) {
+        const members = group.members;
+        await Group.deleteOne({ groupId });
+
+        for (const memberId of members) {
+          const memberGroups = await Group.find({ members: memberId });
+          const room = memberId.replace(/\s+/g, '_').toLowerCase();
+          io.to(room).emit("my-groups", memberGroups);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Delete Group Error:", error);
+    }
+  });
+
+  socket.on("add-group-member", async ({ groupId, memberId, by }) => {
+    try {
       const normalizedMember = memberId.toLowerCase();
-      if (!group.members.includes(normalizedMember)) {
-        group.members.push(normalizedMember);
-        groupStore.set(groupId, group);
-        saveGroups();
+      const group = await Group.findOneAndUpdate(
+        { groupId },
+        { $addToSet: { members: normalizedMember } },
+        { new: true }
+      );
 
-        // Broadcast to all members
-        group.members.forEach(mid => {
-          const room = mid.replace(/\s+/g, '_').toLowerCase();
-          io.to(room).to(mid).emit("my-groups", Array.from(groupStore.values()).filter(g => g.members.includes(mid)));
-          io.to(room).to(mid).emit("group-created", group); // Ensure new member gets the group info
-        });
-
-        console.log(`➕ User ${memberId} added to group ${groupId} by ${by}`);
-      }
-    }
-  });
-
-
-  socket.on("get-chat-history", ({ userId }, callback) => {
-    if (!userId) return callback?.({ success: false });
-    const normalized = userId.toLowerCase();
-
-    // Construct a per-user history map
-    const userHistory = {};
-    for (const [key, messages] of chatsStore.entries()) {
-      if (key.includes(normalized)) {
-        const friendId = key.split('_').find(id => id !== normalized);
-        if (friendId) {
-          userHistory[friendId] = { messages, unread: 0 };
-        }
-      }
-    }
-
-    callback?.({ success: true, history: userHistory });
-  });
-
-  // Delete Message Handler
-  socket.on("delete-message", ({ chatId, messageId, from }) => {
-    const targetRoom = chatId.toLowerCase();
-    const normalizedFrom = from.toLowerCase();
-    const targetIdStr = messageId?.toString();
-
-    console.log(`🗑️ Delete Request from ${from} for chat room ${targetRoom}, msgId: ${messageId}`);
-
-    // 1. Group Deletion
-    if (chatId.startsWith("group_")) {
-      const group = groupStore.get(chatId) || groupStore.get(chatId.toLowerCase());
       if (group) {
-        // Broadcast to all members
-        group.members.forEach(memberId => {
-          const room = memberId.replace(/\s+/g, '_').toLowerCase();
-          io.to(room).to(memberId).emit("message-deleted", {
-            chatId: chatId, // Recipient sees this coming from the group
-            messageId: targetIdStr
-          });
-        });
-
-        // Update stored messages in group
-        if (group.messages) {
-          let found = false;
-          group.messages = group.messages.map(msg => {
-            const msgIds = [msg.id?.toString(), msg.timestamp?.toString(), msg.msgId?.toString()].filter(Boolean);
-            if (msgIds.includes(targetIdStr)) {
-              found = true;
-              return { ...msg, text: "🚫 This message was deleted", isDeleted: true, reactions: {} };
-            }
-            return msg;
-          });
-          if (found) {
-            groupStore.set(chatId, group);
-            saveGroups();
-            console.log(`  -> Group DB: Marked as deleted`);
-          }
+        for (const mid of group.members) {
+          const memberGroups = await Group.find({ members: mid });
+          const room = mid.replace(/\s+/g, '_').toLowerCase();
+          io.to(room).emit("my-groups", memberGroups);
         }
       }
-      return;
+    } catch (error) {
+      console.error("❌ Add Group Member Error:", error);
     }
+  });
 
-    // 2. P2P Deletion
-    // Broadcast to recipient room (all their tabs)
-    io.to(targetRoom).to(chatId).emit("message-deleted", {
-      chatId: normalizedFrom,
-      messageId: targetIdStr
-    });
+  socket.on("get-chat-history", async ({ userId }, callback) => {
+    if (!userId) return callback?.({ success: false });
+    const normalized = String(userId).toLowerCase();
 
-    // Also broadcast to other tabs of the sender
-    socket.to(normalizedFrom).to(from).emit("message-deleted", {
-      chatId: targetRoom,
-      messageId: targetIdStr
-    });
+    try {
+      const messages = await Message.find({
+        $or: [{ from: normalized }, { to: normalized }]
+      }).sort({ timestamp: 1 });
 
-    // Update stored messages in P2P chat
-    const chatKey = [normalizedFrom, targetRoom].sort().join('_');
-    if (chatsStore.has(chatKey)) {
-      let history = chatsStore.get(chatKey);
-      let found = false;
-
-      history = history.map(msg => {
-        const msgIds = [msg.id?.toString(), msg.timestamp?.toString(), msg.msgId?.toString()].filter(Boolean);
-        if (msgIds.includes(targetIdStr)) {
-          found = true;
-          return { ...msg, text: "🚫 This message was deleted", isDeleted: true, reactions: {} };
+      const userHistory = {};
+      messages.forEach(msg => {
+        const friendId = msg.from === normalized ? msg.to : msg.from;
+        if (!userHistory[friendId]) {
+          userHistory[friendId] = { messages: [], unread: 0 };
         }
-        return msg;
+        userHistory[friendId].messages.push({
+          ...msg.toObject(),
+          id: msg.msgId,
+          fromMe: msg.from === normalized
+        });
       });
 
-      if (found) {
-        console.log(`  -> P2P DB: Message matched and updated in history`);
-        chatsStore.set(chatKey, history);
-        saveChats();
-      } else {
-        console.log(`  -> P2P DB: Message ID ${targetIdStr} NOT found in history for key ${chatKey}`);
-      }
+      callback?.({ success: true, history: userHistory });
+    } catch (error) {
+      console.error("❌ History Retrieval Error:", error);
+      callback?.({ success: false, error: "Database error" });
     }
   });
 
-  // Message Seen/Read Receipt Handler
-  socket.on("message-seen", ({ groupId, from }) => {
-    // 'groupId' is the ID of the chat being read (could be a user ID for P2P)
-    // 'from' is the ID of the user WRITING the seen status (the reader)
-    const readerId = from.toLowerCase();
-    const targetRoom = groupId.toLowerCase(); // The chat ID
-    const isGroup = groupId.startsWith("group_");
-
-    console.log(`👀 Seen Event: User ${readerId} saw chat ${targetRoom}`);
-
-    if (isGroup) {
-      const group = groupStore.get(groupId) || groupStore.get(groupId.toLowerCase());
-      if (group && group.messages) {
-        let updated = false;
-        group.messages.forEach(msg => {
-          // If message is NOT from the reader, and reader hasn't seen it yet
-          if (msg.from !== readerId) {
-            if (!msg.seenBy) msg.seenBy = [];
-            if (!msg.seenBy.includes(readerId)) {
-              msg.seenBy.push(readerId);
-              updated = true;
-            }
-          }
-        });
-        if (updated) {
-          groupStore.set(groupId, group);
-          saveGroups();
-          // Broadcast to all members that this user saw the group
-          group.members.forEach(memberId => {
-            const room = memberId.replace(/\s+/g, '_').toLowerCase();
-            io.to(room).emit("message-seen", { groupId, from: readerId });
-          });
-        }
-      }
-    } else {
-      // P2P: Mark messages from the OTHER person as seen by ME
-      // Logic: I am 'readerId'. I am reading chat with 'targetRoom'.
-      // So messages in this chat where msg.from === targetRoom should be marked seen.
-
-      const otherUserId = targetRoom;
-      const chatKey = [readerId, otherUserId].sort().join('_');
-      if (chatsStore.has(chatKey)) {
-        let history = chatsStore.get(chatKey);
-        let updated = false;
-
-        history = history.map(msg => {
-          // If message is from the OTHER person (not me) and not seen yet
-          if (msg.from.toLowerCase() === otherUserId && !msg.seen) {
-            updated = true;
-            return { ...msg, seen: true };
-          }
-          return msg;
-        });
-
-        if (updated) {
-          chatsStore.set(chatKey, history);
-          saveChats();
-          console.log(`  -> Marked P2P messages as seen in ${chatKey}`);
-
-          // Notify the Sender (the other user) that I saw their messages
-          const senderRoom = otherUserId.replace(/\s+/g, '_').toLowerCase();
-          io.to(senderRoom).emit("message-seen", { from: readerId, groupId: readerId });
-          // groupId sent as readerId because on the sender's side, the chat ID is the reader's ID
-        }
-      }
-    }
-  });
-
-  // Edit Message Handler
-  socket.on("edit-message", ({ chatId, messageId, newText, from }) => {
-    const targetRoom = chatId.replace(/\s+/g, '_').toLowerCase();
-    const normalizedFrom = from.toLowerCase();
+  socket.on("delete-message", async ({ chatId, messageId, from }) => {
+    const targetRoom = String(chatId).toLowerCase();
+    const normalizedFrom = String(from).toLowerCase();
     const targetIdStr = messageId?.toString();
-    const isGroup = chatId.startsWith("group_");
 
-    console.log(`✏️ Edit Request: From=${from}, Chat=${chatId}, Room=${targetRoom}, ID=${targetIdStr}`);
+    try {
+      const result = await Message.findOneAndUpdate(
+        { msgId: targetIdStr },
+        { text: encryptMessage("🚫 This message was deleted"), isDeleted: true },
+        { new: true }
+      );
 
-    let updatedMsg = null;
-
-    if (isGroup) {
-      const group = groupStore.get(chatId) || groupStore.get(chatId.toLowerCase());
-      if (group && group.messages) {
-        const msgIndex = group.messages.findIndex(m => [m.id?.toString(), m.timestamp?.toString(), m.msgId?.toString()].filter(Boolean).includes(targetIdStr));
-        if (msgIndex !== -1) {
-          group.messages[msgIndex].text = newText;
-          group.messages[msgIndex].isEdited = true;
-          updatedMsg = group.messages[msgIndex];
-          groupStore.set(chatId, group);
-          saveGroups();
-
-          console.log(`  -> Group DB Updated. Broadcasting to members.`);
-          // Broadcast to all members
-          group.members.forEach(memberId => {
-            const room = memberId.replace(/\s+/g, '_').toLowerCase();
-            io.to(room).emit("message-edited", {
-              chatId: chatId,
-              messageId: targetIdStr,
-              newText,
-              updatedMsg
-            });
-          });
-        } else {
-          console.log(`  -> Group DB: Message ID ${targetIdStr} NOT found.`);
-        }
+      if (result) {
+        io.to(targetRoom).to(chatId).emit("message-deleted", { chatId: normalizedFrom, messageId: targetIdStr });
+        socket.to(normalizedFrom).emit("message-deleted", { chatId: targetRoom, messageId: targetIdStr });
       }
-    } else {
-      // P2P Edit
-      const chatKey = [normalizedFrom, targetRoom].sort().join('_');
-      if (chatsStore.has(chatKey)) {
-        const history = chatsStore.get(chatKey);
-        const msgIndex = history.findIndex(m => [m.id?.toString(), m.timestamp?.toString(), m.msgId?.toString()].filter(Boolean).includes(targetIdStr));
-        if (msgIndex !== -1) {
-          history[msgIndex].text = newText;
-          history[msgIndex].isEdited = true;
-          updatedMsg = history[msgIndex];
-          chatsStore.set(chatKey, history);
-          saveChats();
-
-          console.log(`  -> P2P DB Updated. Broadcasting to ${targetRoom} and ${normalizedFrom}`);
-          // Broadcast to recipient
-          io.to(targetRoom).emit("message-edited", {
-            chatId: normalizedFrom,
-            messageId: targetIdStr,
-            newText,
-            updatedMsg
-          });
-
-          // Broadcast to other tabs of the sender
-          socket.to(normalizedFrom).emit("message-edited", {
-            chatId: targetRoom,
-            messageId: targetIdStr,
-            newText,
-            updatedMsg
-          });
-        } else {
-          console.log(`  -> P2P DB: Message ID ${targetIdStr} NOT found in ${chatKey}`);
-        }
-      } else {
-        console.log(`  -> P2P DB: Chat key ${chatKey} NOT found.`);
-      }
+    } catch (error) {
+      console.error("❌ Message Delete Error:", error);
     }
   });
 
-  // Global Clear Chat Handler
-  socket.on("clear-chat", ({ chatId, from }) => {
-    console.log(`🧹 Clear Chat Request from ${from} for chat: ${chatId}`);
-    const normalizedFrom = from.toLowerCase();
-    const targetId = chatId.toLowerCase();
+  socket.on("message-seen", async ({ groupId, from }) => {
+    const readerId = String(from).toLowerCase();
+    const targetRoom = String(groupId).toLowerCase();
 
-    // 1. Group Clear
-    if (chatId.startsWith("group_")) {
-      const group = groupStore.get(chatId) || groupStore.get(chatId.toLowerCase());
-      if (group) {
-        group.messages = [];
-        groupStore.set(chatId, group);
-        saveGroups();
+    try {
+      await Message.updateMany(
+        { from: targetRoom, to: readerId, seen: { $ne: true } },
+        { $set: { seen: true } }
+      );
+      io.to(targetRoom).emit("message-seen", { from: readerId, groupId: readerId });
+    } catch (error) {
+      console.error("❌ Message Seen Error:", error);
+    }
+  });
 
-        // Broadcast to all members (all their tabs)
-        group.members.forEach(memberId => {
-          const room = memberId.replace(/\s+/g, '_').toLowerCase();
-          io.to(room).to(memberId).emit("chat-cleared", { chatId: chatId });
+  socket.on("edit-message", async ({ chatId, messageId, newText, from }) => {
+    const targetRoom = String(chatId).toLowerCase();
+    const normalizedFrom = String(from).toLowerCase();
+    const targetIdStr = messageId?.toString();
+
+    try {
+      const updatedMsg = await Message.findOneAndUpdate(
+        { msgId: targetIdStr },
+        { text: newText, isEdited: true },
+        { new: true }
+      );
+
+      if (updatedMsg) {
+        io.to(targetRoom).emit("message-edited", {
+          chatId: normalizedFrom,
+          messageId: targetIdStr,
+          newText,
+          updatedMsg: { ...updatedMsg.toObject(), id: updatedMsg.msgId }
         });
-        console.log(`  -> Group DB: History cleared for ${chatId}`);
+        socket.to(normalizedFrom).emit("message-edited", {
+          chatId: targetRoom,
+          messageId: targetIdStr,
+          newText,
+          updatedMsg: { ...updatedMsg.toObject(), id: updatedMsg.msgId }
+        });
       }
-      return;
+    } catch (error) {
+      console.error("❌ Message Edit Error:", error);
     }
-
-    // 2. P2P Clear
-    const chatKey = [normalizedFrom, targetId].sort().join('_');
-    if (chatsStore.has(chatKey)) {
-      chatsStore.set(chatKey, []);
-      saveChats();
-      console.log(`  -> P2P DB: History cleared for key ${chatKey}`);
-    }
-
-    // Broadcast to recipient (all their tabs)
-    const recipientRoom = targetId.replace(/\s+/g, '_').toLowerCase();
-    console.log(`  -> Broadcasting clear-chat to recipient rooms: ${recipientRoom}, ${targetId}`);
-    io.to(recipientRoom).to(targetId).emit("chat-cleared", { chatId: normalizedFrom });
-
-    // Broadcast to sender (all their tabs)
-    const senderRoom = normalizedFrom.replace(/\s+/g, '_').toLowerCase();
-    console.log(`  -> Broadcasting clear-chat to sender rooms: ${senderRoom}, ${normalizedFrom}`);
-    io.to(senderRoom).to(normalizedFrom).emit("chat-cleared", { chatId: targetId });
   });
 
+  socket.on("clear-chat", async ({ chatId, from }) => {
+    const normalizedFrom = String(from).toLowerCase();
+    const targetId = String(chatId).toLowerCase();
 
+    try {
+      await Message.deleteMany({
+        $or: [
+          { from: normalizedFrom, to: targetId },
+          { from: targetId, to: normalizedFrom }
+        ]
+      });
 
+      const recipientRoom = targetId.replace(/\s+/g, '_');
+      io.to(recipientRoom).to(targetId).emit("chat-cleared", { chatId: normalizedFrom });
+      const senderRoom = normalizedFrom.replace(/\s+/g, '_');
+      io.to(senderRoom).to(normalizedFrom).emit("chat-cleared", { chatId: targetId });
+    } catch (error) {
+      console.error("❌ Message Clear Error:", error);
+    }
+  });
 
   socket.on("diagnostic-ping", (cb) => {
-    console.log("🏓 Diagnostic Ping from:", socket.id);
     if (cb) cb("pong");
   });
 
   socket.on("disconnect", () => {
-    console.log("Client disconnected:", socket.id);
     for (const [uid, sid] of onlineUsers.entries()) {
       if (sid === socket.id) onlineUsers.delete(uid);
     }
-
-    const uniqueOnlineUids = Array.from(new Set(
-      Array.from(onlineUsers.keys())
-        .filter(k => userStore.has(k.toLowerCase()) && !k.startsWith("@"))
-        .map(k => k.toLowerCase())
-    ));
+    const uniqueOnlineUids = Array.from(onlineUsers.keys())
+      .filter(k => !k.startsWith("@"))
+      .map(k => k.toLowerCase());
     io.emit("online-users", uniqueOnlineUids);
   });
 });

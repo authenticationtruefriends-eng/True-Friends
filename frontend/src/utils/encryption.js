@@ -110,7 +110,7 @@ const getCryptoKey = async () => {
         {
             name: "PBKDF2",
             salt: enc.encode("TRUE_FRIENDS_SALT_V1"), // Matches backend if shared
-            iterations: 100000,
+            iterations: 10000,  // Reduced from 100,000 for ~10x faster key derivation
             hash: "SHA-256"
         },
         keyMaterial,

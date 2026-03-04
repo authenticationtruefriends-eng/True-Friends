@@ -1,5 +1,7 @@
-import Message from './models/Message.js';
-import { decryptMessage } from './encryption.js';
+import https from 'https';
+import { checkOllamaHealth, generateOllamaResponse, clearOllamaContext } from './ollama-client.js';
+import { generateFallbackResponse } from './fallback-ai.js';
+import { downloadAndCacheImage } from './ai-image-proxy.js';
 
 // AI Configuration - Customizable settings
 const AI_CONFIG = {
@@ -31,6 +33,9 @@ GUIDELINES:
     useCloudAI: true, // Use Pollinations Text API as primary cloud fallback
     healthCheckInterval: 60000 // Check Ollama health every 60 seconds
 };
+
+// Simple context store for Pollinations (since it's stateless via API)
+const cloudContext = new Map();
 
 // Track Ollama health status
 let ollamaHealthy = false;
@@ -99,14 +104,18 @@ function makeTextRequest(url, payload) {
 /**
  * Generate AI response using Pollinations Text API (FREE)
  */
-async function generatePollinationsText(userId, message, history = []) {
+async function generatePollinationsText(userId, message) {
     try {
         console.log(`📡 Sending request to Pollinations Text API for ${userId}...`);
+
+        // Retrieve or init context
+        if (!cloudContext.has(userId)) cloudContext.set(userId, []);
+        const history = cloudContext.get(userId);
 
         const payload = {
             messages: [
                 { role: 'system', content: AI_CONFIG.systemPrompt },
-                ...history, // Use fetched history
+                ...history.slice(-10), // Send last 10 messages for context
                 { role: 'user', content: message }
             ],
             model: AI_CONFIG.pollinationsModel,
@@ -114,38 +123,16 @@ async function generatePollinationsText(userId, message, history = []) {
         };
 
         const data = await makeTextRequest('https://text.pollinations.ai/', payload);
+
+        // Update history
+        history.push({ role: 'user', content: message });
+        history.push({ role: 'assistant', content: data });
+        if (history.length > 20) history.splice(0, history.length - 20);
+
         return data;
     } catch (error) {
         console.error("❌ Pollinations Text Error:", error.message);
         throw error;
-    }
-}
-
-/**
- * Fetch and format conversation history for AI from MongoDB
- * @param {string} userId - User ID
- * @returns {Promise<Array>} - Formatted history for AI
- */
-async function getAIHistoryFromDB(userId) {
-    try {
-        // Fetch last 10 messages between user and AI
-        const messages = await Message.find({
-            $or: [
-                { from: userId, to: "ai_friend" },
-                { from: "ai_friend", to: userId }
-            ]
-        })
-            .sort({ timestamp: -1 })
-            .limit(10);
-
-        // Map to AI format (role: user/assistant) and reverse to chronological order
-        return messages.reverse().map(msg => ({
-            role: msg.from === userId ? 'user' : 'assistant',
-            content: decryptMessage(msg.text)
-        }));
-    } catch (error) {
-        console.error("❌ History fetch error:", error);
-        return [];
     }
 }
 
@@ -165,16 +152,16 @@ export async function generateAIResponse(userId, userMessage, attachmentUrl = nu
             const prompt = genMatch[2];
             console.log(`🎨 Image Generation Request: ${prompt}`);
 
-            // Quality enhancements
+            // Quality enhancements (same as before)
             const qualityBoost = "masterpiece, best quality, ultra detailed, 8k uhd, cinematic lighting, photorealistic";
             const enhancedPrompt = `${prompt}, ${qualityBoost}`;
             const encodedPrompt = encodeURIComponent(enhancedPrompt);
 
             const seed = Date.now() % 100000;
-            const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&model=flux&nologo=true`;
+            const pollinationsUrl = `https://pollinations.ai/p/${encodedPrompt}?width=1024&height=1024&seed=${seed}&model=flux`;
 
-            console.log(`🤖 Image DIRECT URL (No Proxy): ${pollinationsUrl}`);
-            return `Here is the image you asked for! 🎨\n\n![Generated Image: ${prompt}](${pollinationsUrl})\n\n*(High Quality AI)*`;
+            const localImageUrl = await downloadAndCacheImage(pollinationsUrl, prompt);
+            return `Here is the image you asked for! 🎨\n\n![Generated Image: ${prompt}](${localImageUrl})\n\n*(High Quality AI)*`;
         }
 
         // Handle Attachment
@@ -217,10 +204,7 @@ export async function generateAIResponse(userId, userMessage, attachmentUrl = nu
             }
         }
 
-        // --- 2. FETCH HISTORY FROM DB (Privacy Isolation) ---
-        const history = await getAIHistoryFromDB(userId);
-
-        // --- 3. GENERATE RESPONSE ---
+        // --- 2. GENERATE RESPONSE ---
 
         // Attempt Ollama (Primary - Offline)
         if (await isOllamaAvailable()) {
@@ -241,7 +225,7 @@ export async function generateAIResponse(userId, userMessage, attachmentUrl = nu
         // Attempt Pollinations Text (Secondary - Cloud Free)
         if (AI_CONFIG.useCloudAI) {
             try {
-                return await generatePollinationsText(userId, finalText, history);
+                return await generatePollinationsText(userId, finalText);
             } catch (err) {
                 console.error('Cloud AI failed, trying rule-based fallback...', err.message);
             }
@@ -263,20 +247,10 @@ export async function generateAIResponse(userId, userMessage, attachmentUrl = nu
 /**
  * Clear conversation history for a user
  */
-export async function clearConversationHistory(userId) {
-    try {
-        clearOllamaContext(userId);
-        // Delete history from MongoDB
-        await Message.deleteMany({
-            $or: [
-                { from: userId, to: "ai_friend" },
-                { from: "ai_friend", to: userId }
-            ]
-        });
-        console.log(`🗑️ Cleared AI history for ${userId}`);
-    } catch (error) {
-        console.error("❌ Failed to clear AI history:", error);
-    }
+export function clearConversationHistory(userId) {
+    clearOllamaContext(userId);
+    cloudContext.delete(userId);
+    console.log(`🗑️ Cleared AI history for ${userId}`);
 }
 
 /**

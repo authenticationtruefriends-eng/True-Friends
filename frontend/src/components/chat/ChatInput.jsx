@@ -38,6 +38,7 @@ export default function ChatInput({ toUser, onSendMessage, initialText = "", onU
 
   const typingTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
+  const videoInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   const docInputRef = useRef(null);
   const audioInputRef = useRef(null);
@@ -610,18 +611,33 @@ export default function ChatInput({ toUser, onSendMessage, initialText = "", onU
     <div className="chat-input-wrapper-modern">
       {uploading && (
         <div style={{
-          position: 'absolute', top: '-10px', left: '10px', right: '10px',
-          height: '4px', background: 'rgba(0,0,0,0.1)', borderRadius: '2px', overflow: 'hidden',
-          zIndex: 10
+          position: 'absolute', bottom: '70px', left: '10px', right: '10px',
+          background: 'var(--bg-secondary)', borderRadius: '12px', padding: '10px 14px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.15)', border: '1px solid var(--border)',
+          zIndex: 10, display: 'flex', flexDirection: 'column', gap: '6px'
         }}>
-          <div style={{
-            width: `${uploadProgress}%`, height: '100%',
-            background: 'var(--accent-primary, #5e5ae7)', transition: 'width 0.3s ease'
-          }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+              📤 Uploading...
+            </span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--primary-color, #5e5ae7)', fontWeight: 700 }}>
+              {uploadProgress}%
+            </span>
+          </div>
+          <div style={{ height: '6px', background: 'rgba(0,0,0,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+            <div style={{
+              width: `${uploadProgress}%`, height: '100%',
+              background: 'linear-gradient(90deg, #5e5ae7, #ab47bc)',
+              borderRadius: '3px',
+              transition: 'width 0.3s ease',
+              boxShadow: '0 0 8px rgba(94,90,231,0.4)'
+            }} />
+          </div>
         </div>
       )}
       {/* Hidden File Inputs */}
-      <input type="file" ref={fileInputRef} onChange={(e) => handleFileSelect(e)} style={{ display: 'none' }} accept="image/*" />
+      <input type="file" ref={fileInputRef} onChange={(e) => handleFileSelect(e)} style={{ display: 'none' }} accept="image/*,video/*" />
+      <input type="file" ref={videoInputRef} onChange={(e) => handleFileSelect(e)} style={{ display: 'none' }} accept="video/*" />
       <input type="file" ref={cameraInputRef} onChange={(e) => handleFileSelect(e)} style={{ display: 'none' }} accept="image/*" capture="camera" />
       <input type="file" ref={docInputRef} onChange={(e) => handleFileSelect(e, 'file')} style={{ display: 'none' }} />
       <input type="file" ref={audioInputRef} onChange={(e) => handleFileSelect(e, 'audio')} style={{ display: 'none' }} accept="audio/*" />
@@ -637,6 +653,10 @@ export default function ChatInput({ toUser, onSendMessage, initialText = "", onU
             <div className="attach-item" onClick={() => fileInputRef.current?.click()}>
               <div className="attach-icon-wrapper" style={{ background: '#5e5ae7' }}><ImageIcon size={22} /></div>
               <span className="attach-label">Gallery</span>
+            </div>
+            <div className="attach-item" onClick={() => videoInputRef.current?.click()}>
+              <div className="attach-icon-wrapper" style={{ background: '#e91e63' }}><Video size={22} /></div>
+              <span className="attach-label">Video</span>
             </div>
             <div className="attach-item" onClick={handleCameraClick}>
               <div className="attach-icon-wrapper" style={{ background: '#ff4b8c' }}><Camera size={22} /></div>

@@ -209,44 +209,56 @@ export default function Welcome() {
             {/* Main */}
             <main className="welcome-main">
                 <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
-                    className="logo-container-large"
-                >
-                    <img src="/logo.png" alt="True Friends" className="welcome-logo" />
-                </motion.div>
-
-                <motion.h1
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.4 }}
-                    className="welcome-tagline"
+                    transition={{ duration: 0.8 }}
+                    className="welcome-center-content"
                 >
-                    Stay Close, No Matter The Distance
-                </motion.h1>
+                    <h1 className="welcome-main-title">
+                        <span className="brand-part-true">True</span>
+                        <span className="brand-part-friends"> Friends</span>
+                    </h1>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.6 }}
-                    className="download-section"
-                >
-                    <div className="download-btn-group">
-                        <button onClick={() => setShowSoon(true)} className="download-btn">
-                            <Smartphone size={24} />
-                            Download
-                        </button>
-                        <span className="platform-label">for Android</span>
-                    </div>
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                        className="logo-container-large"
+                    >
+                        <img src="/logo.png" alt="True Friends" className="welcome-logo" />
+                    </motion.div>
 
-                    <div className="download-btn-group">
-                        <button onClick={() => setShowSoon(true)} className="download-btn">
-                            <Monitor size={24} />
-                            Download
-                        </button>
-                        <span className="platform-label">for Windows</span>
-                    </div>
+                    <motion.h1
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.4 }}
+                        className="welcome-tagline"
+                    >
+                        Stay Close, No Matter The Distance
+                    </motion.h1>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.6 }}
+                        className="download-section"
+                    >
+                        <div className="download-btn-group">
+                            <button onClick={() => setShowSoon(true)} className="download-btn">
+                                <Smartphone size={24} />
+                                Download
+                            </button>
+                            <span className="platform-label">for Android</span>
+                        </div>
+
+                        <div className="download-btn-group">
+                            <button onClick={() => setShowSoon(true)} className="download-btn">
+                                <Monitor size={24} />
+                                Download
+                            </button>
+                            <span className="platform-label">for Windows</span>
+                        </div>
+                    </motion.div>
                 </motion.div>
             </main>
 

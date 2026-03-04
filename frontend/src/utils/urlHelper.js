@@ -18,8 +18,13 @@ export const getConstructedUrl = (url) => {
         let cleanUrl = url.replace(/\\/g, '/');
 
         // 3. FIXED UPLOAD HANDLING:
-        // Detect Cloudinary URLs and return directly
+        // Detect Cloudinary/Pollinations URLs and return directly (or proxy if external AI)
         if (cleanUrl.includes('cloudinary.com')) return cleanUrl;
+
+        if (cleanUrl.includes('pollinations.ai')) {
+            // Return directly to avoid VPS proxy blocks (HTTP 530)
+            return cleanUrl;
+        }
 
         // Since Vite proxies /uploads to backend, we should ALWAYS return relative path
         // for uploads to avoid Port 5000 / IP Mismatch issues on mobile/LAN.
